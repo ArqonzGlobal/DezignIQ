@@ -1,0 +1,98 @@
+.main-category-card {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  gap: 8px;
+  background-color: #f8f8f8;
+  border-radius: 16px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 520px; /* ✅ smaller width for compact cards */
+  height: 240px; /* ✅ consistent, not too tall */
+  flex-shrink: 0;
+}
+
+/* Left large image */
+.main-box {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  height: 100%;
+}
+
+.main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.main-text {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #ffeae5;
+  text-align: center;
+  padding: 6px 0;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* Right side: 3 stacked small boxes */
+.sub-category-card {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+  height: 100%;
+}
+
+.sub-box {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.sub-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sub-text {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(255, 239, 234, 0.95);
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+
+/* Parent container (for multiple cards in a row) */
+.category-container {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap; /* ✅ Wraps into new line instead of scrolling */
+  justify-content: flex-start;
+  padding: 10px;
+  background-color: #f3f6f8;
+}
+
+/* Responsive adjustment */
+@media (max-width: 768px) {
+  .main-category-card {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    height: auto;
+    max-width: 100%;
+  }
+
+  .sub-category-card {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: none;
+    gap: 8px;
+  }
+}

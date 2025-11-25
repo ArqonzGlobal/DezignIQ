@@ -1,0 +1,19 @@
+* {
+    font-family: "Bricolage Grotesque";
+}
+
+.gradient-style {
+    background: linear-gradient(90deg, #0f7176 0%, #009EA6 44.95%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+} 
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}   
