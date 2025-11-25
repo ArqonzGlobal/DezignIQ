@@ -69,6 +69,7 @@ const DesignIQ = () => {
   const [showBrickCalculator, setShowBrickCalculator] = useState(false);
   const [showVastuCalculator, setShowVastuCalculator] = useState(false);
   const [showBoardFootCalculator, setShowBoardFootCalculator] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { history, addToHistory, removeFromHistory, clearHistory } = useImageHistory();
 
@@ -78,11 +79,7 @@ const DesignIQ = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header 
-        onToolsClick={() => setShowCalculators(true)}
-        onAIToolsClick={() => setShowCalculators(false)}
-        showingCalculators={showCalculators}
-      />
+       <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       
       <main>
         {!showCalculators ? (
@@ -99,6 +96,7 @@ const DesignIQ = () => {
             onLaunchFourKUpscaler={() => setIs4KUpscalerOpen(true)}
             onLaunchVideoAI={() => setIsVideoAIOpen(true)}
             onLaunchPromptGenerator={() => setIsPromptGeneratorOpen(true)}
+            searchQuery={searchQuery}
           />
         ) : (
           <ConstructionCalculatorTools

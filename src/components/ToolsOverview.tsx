@@ -29,6 +29,7 @@ interface ToolsOverviewProps {
   onLaunchFourKUpscaler: () => void;
   onLaunchPromptGenerator: () => void;
   onLaunchVideoAI: () => void;
+  searchQuery: string;
 }
 
 const tools = [
@@ -130,7 +131,7 @@ const tools = [
   },
 ];
 
-export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunchSketchToImage, onLaunchInpaintingAI, onLaunchImagineAI, onLaunchStyleTransfer, onLaunchRenderEnhancer, onLaunchVirtualStaging, onLaunchAIEraser, onLaunchFourKUpscaler, onLaunchPromptGenerator, onLaunchVideoAI }: ToolsOverviewProps) => {
+export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunchSketchToImage, onLaunchInpaintingAI, onLaunchImagineAI, onLaunchStyleTransfer, onLaunchRenderEnhancer, onLaunchVirtualStaging, onLaunchAIEraser, onLaunchFourKUpscaler, onLaunchPromptGenerator, onLaunchVideoAI, searchQuery }: ToolsOverviewProps) => {
   const [activeTab, setActiveTab] = useState('all-tools');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -186,9 +187,16 @@ export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunch
     }
   };
 
-  const filteredTools = tools.filter(tool => 
-    activeTab === 'all-tools' || tool.category === activeTab
-  );
+   const filteredTools = tools.filter(tool => {
+      const matchesTab =
+        activeTab === "all-tools" || tool.category === activeTab;
+
+      const matchesSearch =
+        tool.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        tool.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesTab && matchesSearch;
+    });
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -199,7 +207,7 @@ export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunch
       <div className="max-w-7xl mx-auto">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Architecture AI Tools</h1>
+          <h1 className="text-3xl font-bold mb-4">DesignIQ</h1>
           
           <NavigationTabs 
             activeTab={activeTab}
@@ -223,7 +231,7 @@ export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunch
         
         {filteredTools.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No tools available in this category yet.</p>
+            <p className="text-muted-foreground">No tools available...</p>
           </div>
         )}
       </div>
