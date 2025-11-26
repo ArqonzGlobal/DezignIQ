@@ -1,7 +1,7 @@
 import CryptoJS from "crypto-js";
 
-const BASE64_KEY = "DZQxY2lBMTIzNDU2Nzg5MGFiY2RlZg==";
-const BASE64_IV  = "QWJjZGVmZ0hpSg==";
+const SECRET_KEY = import.meta.env.VITE_SECRET_KEY;
+const SECRET_IV  = import.meta.env.VITE_SECRET_IV;
 
 function padOrTrim(wordArray: CryptoJS.lib.WordArray, length: number) {
   const bytes = wordArray.sigBytes;
@@ -31,8 +31,8 @@ export function decrypt(cipher: string | null) {
   if (!cipher) return null;
 
   try {
-    let key = CryptoJS.enc.Base64.parse(BASE64_KEY);
-    let iv  = CryptoJS.enc.Base64.parse(BASE64_IV);
+    let key = CryptoJS.enc.Base64.parse(SECRET_KEY);
+    let iv  = CryptoJS.enc.Base64.parse(SECRET_IV);
 
     key = padOrTrim(key, 32);
 

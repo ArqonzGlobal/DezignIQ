@@ -8,7 +8,7 @@ interface NotLoggedInModalProps {
 
 export const NotLoggedInModal = ({ open, onClose }: NotLoggedInModalProps) => {
   function handleSignIn() {
-    window.location.href = "https://arqonz.com/account/sign-in?dezigniq";
+    window.location.href = import.meta.env.VITE_REDIRECT_URI;
   }
 
   return (

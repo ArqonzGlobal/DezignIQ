@@ -10,7 +10,7 @@ export const Header = ({ searchQuery, setSearchQuery }) => {
   const { isLoggedIn, setIsLoggedIn } = useUser();
 
   function handleSignInRedirect() {
-    const redirectUrl = `https://arqonz.com/en/account/login?redirect=https://dezigniq.arqonz.com/`;
+    const redirectUrl = import.meta.env.VITE_REDIRECT_URI;
 
     window.location.href = redirectUrl;
   }
