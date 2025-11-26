@@ -15,7 +15,7 @@ function AppContent() {
   const { search } = useLocation();
   const { setIsLoggedIn } = useUser();
 
-  useEffect(() => {
+ useEffect(() => {
     const params = new URLSearchParams(search);
     const code = params.get("code");
 
@@ -23,7 +23,9 @@ function AppContent() {
       const decrypted = decrypt(code);
       console.log("Decrypted code:", decrypted);
 
-      if (decrypted === "login") {
+      if (decrypted && decrypted.startsWith("loggedin")) {
+        const [status, dateTime] = decrypted.split("/");
+
         setIsLoggedIn(true);
         console.log("User is logged in!");
 
