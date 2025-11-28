@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { toast } from "@/hooks/use-toast";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,7 +16,7 @@ function AppContent() {
   const { search } = useLocation();
   const { setIsLoggedIn } = useUser();
 
- useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(search);
     const code = params.get("code");
 
@@ -24,13 +25,43 @@ function AppContent() {
       console.log("Decrypted code:", decrypted);
 
       if (decrypted && decrypted.startsWith("loggedin")) {
-        const [status, dateTime] = decrypted.split("/");
+        const [status, dateTime] = decrypted.split("/"); 
 
-        setIsLoggedIn(true);
-        console.log("User is logged in!");
+        const [dd, mm, yyyy, hh, min] = dateTime.split("-").map(Number);
 
-        // Remove ?code= from URL after processing
+        const loginTime = new Date(yyyy, mm - 1, dd, hh, min);
+
+        const now = new Date();
+
+        const validUntil = new Date(loginTime.getTime() + 5 * 60 * 1000);
+
+        console.log("Login time:", loginTime);
+        console.log("Valid until:", validUntil);
+        console.log("Now:", now);
+
+        if (now <= validUntil) {
+          // VALID LOGIN (within 5 min)
+          setIsLoggedIn(true);
+          toast({
+            title: "Login successful",
+            description: "You are now logged in.",
+          });
+        } else {
+          toast({
+            title: "Login link expired",
+            description: "The login link has expired. Please try signing in again.",
+            variant: "destructive",
+          });
+        }
+
         window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      else {
+        toast({
+          title: "Invalid login code",
+          description: "The login code is invalid. Please try signing in again.",
+          variant: "destructive",
+        });
       }
     }
   }, [search]);
