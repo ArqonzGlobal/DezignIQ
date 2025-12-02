@@ -1,35 +1,67 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Coins } from "lucide-react";
 import logoArq from "@/assets/logo-arq.png";
 import { useUser } from "@/contexts/UserContext";
 import { LogIn } from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiRequest } from "@/utils/steroid";
 
 export const Header = ({ searchQuery, setSearchQuery }) => {
-
   const { isLoggedIn, setIsLoggedIn } = useUser();
+  const navigate = useNavigate();
+  const [credits, setCredits] = useState(null);
 
-  function handleSignInRedirect() {
-    const redirectUrl = import.meta.env.VITE_REDIRECT_URI;
+  useEffect(() => {
+    async function fetchCredits() {
+      let apiKey = localStorage.getItem("apikey");
+      apiKey = apiKey?.replace(/^"|"$/g, "");
 
-    window.location.href = redirectUrl;
+      console.log("Fetched API Key:", apiKey);
+
+      if (!apiKey) return;
+
+      const response = await apiRequest(
+        "/get-credits",
+        "POST",
+        { apiKey }
+      );
+
+      console.log("Credits Response:", response);
+
+      if (response?.success) {
+        setCredits(response.credits);
+      }
+    }
+
+    if (isLoggedIn) {
+      fetchCredits();
+    }
+  }, [isLoggedIn]);
+
+  function handleSignIn() {
+    navigate("/login");
   }
 
-    function handleSignOut() {
-      setIsLoggedIn(false);
-
-      window.location.href = "/";
-    }
+  function handleSignOut() {
+    setIsLoggedIn(false);
+    localStorage.removeItem("user");
+    localStorage.removeItem("apikey");
+    window.location.href = "/";
+  }
 
   return (
     <header className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
+          
+          {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center">
-              <img src={logoArq} alt="ARQONZ.COM" className="h-8" />
-            </div>
+            <img src={logoArq} alt="ARQONZ.COM" className="h-8" />
           </div>
+
+          {/* Search Bar */}
           <div className="flex-1 max-w-lg">
             <div className="flex items-center bg-card rounded-full shadow-sm border max-w-2xl mx-auto">
               <div className="flex-1 relative">
@@ -43,7 +75,19 @@ export const Header = ({ searchQuery, setSearchQuery }) => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Right Side */}
+          <div className="flex items-center gap-4">
+
+            {/* SHOW CREDITS IF LOGGED IN */}
+            {isLoggedIn && credits !== null && (
+              <div className="flex items-center gap-1 text-sm font-medium">
+                <Coins className="h-4 w-4 text-yellow-500" />
+                {credits} Credits
+              </div>
+            )}
+
+            {/* Login / Logout */}
             {isLoggedIn ? (
               <Button
                 onClick={handleSignOut}
@@ -56,7 +100,7 @@ export const Header = ({ searchQuery, setSearchQuery }) => {
               </Button>
             ) : (
               <Button
-                onClick={handleSignInRedirect}
+                onClick={handleSignIn}
                 variant="default"
                 size="sm"
                 className="bg-primary hover:bg-primary-light gap-2"
