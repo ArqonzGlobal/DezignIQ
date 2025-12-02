@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface NotLoggedInModalProps {
@@ -7,8 +8,10 @@ interface NotLoggedInModalProps {
 }
 
 export const NotLoggedInModal = ({ open, onClose }: NotLoggedInModalProps) => {
+  const navigate = useNavigate();
+
   function handleSignIn() {
-    window.location.href = import.meta.env.VITE_REDIRECT_URI;
+    navigate("/login");  
   }
 
   return (
