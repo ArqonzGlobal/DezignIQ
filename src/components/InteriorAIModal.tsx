@@ -9,6 +9,7 @@ import { RenderingOptions } from "./RenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { updateCredits } from "@/utils/steroid";
 
 interface InteriorAIModalProps {
   isOpen: boolean;
@@ -113,7 +114,8 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
             toolName: 'Interior AI',
             prompt: generatePrompt(),
           });
-          
+
+          updateCredits();
           toast({
             title: "Interior Design Complete!",
             description: `Generated in ${Math.round((endTime - startTime) / 1000)}s`,

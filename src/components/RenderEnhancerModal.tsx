@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
 import { supabase } from "@/integrations/supabase/client";
+import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
 import { Upload, Loader2, Download, X, Sparkles, Zap, Clock } from "lucide-react";
 
@@ -105,6 +106,8 @@ export const RenderEnhancerModal = ({ isOpen, onClose, onImageGenerated }: Rende
                   prompt,
                 });
                 
+                updateCredits();
+
                 toast.success("Render enhancement completed successfully!");
                 return;
               } else if (statusData?.status === 'failed') {

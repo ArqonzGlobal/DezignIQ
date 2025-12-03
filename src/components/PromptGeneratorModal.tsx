@@ -8,6 +8,7 @@ import { SketchUploader } from "./SketchUploader";
 import { Sparkles, Zap, X, Copy, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { updateCredits } from "@/utils/steroid";
 
 interface PromptGeneratorModalProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export const PromptGeneratorModal = ({ isOpen, onClose }: PromptGeneratorModalPr
 
       if (data.message) {
         setGeneratedPrompt(data.message);
+        updateCredits();
         toast({
           title: "Prompt Generated!",
           description: "Your architectural prompt is ready.",

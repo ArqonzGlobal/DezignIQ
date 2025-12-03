@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
 import { supabase } from "@/integrations/supabase/client";
+import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
 import { Upload, Loader2, Download, X, Image, Zap, Clock } from "lucide-react";
 
@@ -95,6 +96,8 @@ export const FourKUpscalerModal = ({ isOpen, onClose, onImageGenerated }: FourKU
                   imageUrl,
                   toolName: '4K Upscaler',
                 });
+
+                updateCredits();
                 
                 toast.success("4K upscaling completed successfully!");
                 return;

@@ -10,6 +10,7 @@ import { SketchUploader } from "./SketchUploader";
 import { Video, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { updateCredits } from "@/utils/steroid";
 
 interface VideoAIModalProps {
   isOpen: boolean;
@@ -108,6 +109,7 @@ export const VideoAIModal = ({ isOpen, onClose }: VideoAIModalProps) => {
           setProcessingTime((endTime - startTime) / 1000);
           setVideoUrl(statusData.message[0]);
           setIsLoading(false);
+          updateCredits(); 
           
           toast({
             title: "Video Generation Complete!",

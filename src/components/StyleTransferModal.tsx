@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
 import { supabase } from "@/integrations/supabase/client";
+import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
 import { Upload, Loader2, Download, X, Palette, Zap, Clock } from "lucide-react";
 
@@ -108,6 +109,8 @@ export const StyleTransferModal = ({ isOpen, onClose, onImageGenerated }: StyleT
                   toolName: 'Style Transfer',
                   prompt,
                 });
+
+                updateCredits();
                 
                 toast.success("Style transfer completed successfully!");
                 return;

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wand2, Zap, Clock, X, Lightbulb } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { updateCredits } from "@/utils/steroid";
 
 interface ImagineAIModalProps {
   isOpen: boolean;
@@ -121,6 +122,8 @@ export const ImagineAIModal = ({ isOpen, onClose, onImageGenerated }: ImagineAIM
             toolName: 'Imagine AI',
             prompt: prompt.trim(),
           });
+
+          updateCredits();
           
           toast({
             title: "Generation Complete!",

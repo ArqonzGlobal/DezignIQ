@@ -9,7 +9,7 @@ import { SketchRenderingOptions } from "./SketchRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-
+import { updateCredits } from "@/utils/steroid";
 interface SketchToImageModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -122,6 +122,8 @@ export const SketchToImageModal = ({ isOpen, onClose, onImageGenerated }: Sketch
             toolName: 'Sketch to Image',
             prompt: generatePrompt(),
           });
+
+          updateCredits();
           
           toast({
             title: "Rendering Complete!",

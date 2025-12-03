@@ -9,6 +9,7 @@ import { ExteriorRenderingOptions } from "./ExteriorRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { updateCredits } from "@/utils/steroid";
 
 interface ExteriorAIModalProps {
   isOpen: boolean;
@@ -113,6 +114,8 @@ export const ExteriorAIModal = ({ isOpen, onClose, onImageGenerated }: ExteriorA
             toolName: 'Exterior AI',
             prompt: generatePrompt(),
           });
+
+          updateCredits();
           
           toast({
             title: "Exterior Design Complete!",

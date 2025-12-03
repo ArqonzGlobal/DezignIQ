@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wand2, Zap, Clock, X, Upload } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { updateCredits } from "@/utils/steroid";
 
 interface InpaintingAIModalProps {
   isOpen: boolean;
@@ -124,6 +125,8 @@ export const InpaintingAIModal = ({ isOpen, onClose, onImageGenerated }: Inpaint
             toolName: 'Inpainting AI',
             prompt,
           });
+
+          updateCredits(); 
           
           toast({
             title: "Processing Complete!",
