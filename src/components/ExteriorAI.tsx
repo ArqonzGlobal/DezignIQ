@@ -106,7 +106,7 @@ export const ExteriorAI = () => {
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              10 Credits / Generation
+              1 Credits / Generation
             </Badge>
             {processingTime && (
               <Badge variant="outline" className="gap-1">

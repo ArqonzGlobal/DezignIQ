@@ -180,7 +180,7 @@ export const ExteriorAIModal = ({ isOpen, onClose, onImageGenerated }: ExteriorA
             )}
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              10 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />
