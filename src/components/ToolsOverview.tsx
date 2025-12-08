@@ -38,7 +38,7 @@ const tools = [
     title: 'Interior AI',
     description: 'Upload a sketch or model to redesign your interior space with more than 30 unique styles.',
     image: interiorPreview,
-    credits: 10,
+    credits: 1,
     category: 'ai-enhancements',
   },
   {
@@ -46,7 +46,7 @@ const tools = [
     title: 'Exterior AI',
     description: 'Render or redesign your exterior design in seconds. Just upload a photo or sketch and see the magic in action.',
     image: exteriorPreview,
-    credits: 10,
+    credits: 1,
     category: 'ai-enhancements',
   },
   {
@@ -54,7 +54,7 @@ const tools = [
     title: 'Sketch to Image',
     description: 'Convert architectural sketches into photorealistic renders with AI technology.',
     image: sketchToImagePreview,
-    credits: 10,
+    credits: 1,
     category: 'image-tools',
   },
   {
@@ -62,7 +62,7 @@ const tools = [
     title: 'Imagine AI',
     description: 'Transform your architectural concepts into stunning visualizations with AI-powered imagination.',
     image: imagineAIImg,
-    credits: 15,
+    credits: 1,
     category: 'concept-tools',
   },
   {
@@ -70,7 +70,7 @@ const tools = [
     title: 'Style Transfer',
     description: 'Apply different architectural styles to your renders and designs with AI precision.',
     image: stylePreview,
-    credits: 10,
+    credits: 1,
     category: 'ai-enhancements',
   },
   {
@@ -78,7 +78,7 @@ const tools = [
     title: 'Render Enhancer',
     description: 'Enhance Lumion, enscape, vray, sketchup, revit renders and upscale quality renders upon 8k.',
     image: renderPreview,
-    credits: 10,
+    credits: 1,
     category: 'ai-enhancements',
   },
   {
@@ -86,7 +86,7 @@ const tools = [
     title: 'Virtual Staging',
     description: 'Stage empty spaces with furniture and decor using AI to showcase potential layouts.',
     image: virtualStagingImg,
-    credits: 12,
+    credits: 1,
     category: 'concept-tools',
   },
   {
@@ -94,7 +94,7 @@ const tools = [
     title: 'AI Eraser',
     description: 'Remove unwanted objects from your architectural images with intelligent AI filling.',
     image: aiEraserImg,
-    credits: 8,
+    credits: 1,
     category: 'edit-modify',
   },
   {
@@ -102,7 +102,7 @@ const tools = [
     title: '4K Upscaler',
     description: 'Enhance image resolution up to 4K while maintaining architectural details and quality.',
     image: fourKUpscalerImg,
-    credits: 6,
+    credits: 1,
     category: 'image-tools',
   },
   {
@@ -110,7 +110,7 @@ const tools = [
     title: 'Inpainting AI',
     description: 'Fill missing parts of images or modify specific areas with AI-powered inpainting.',
     image: inpaintingAIImg,
-    credits: 10,
+    credits: 1,
     category: 'edit-modify',
   },
   {
@@ -118,7 +118,7 @@ const tools = [
     title: 'Prompt Generator',
     description: 'Analyze architectural images and generate detailed prompts for AI models.',
     image: promptGeneratorImg,
-    credits: 5,
+    credits: 1,
     category: 'ai-enhancements',
   },
   {
@@ -126,7 +126,7 @@ const tools = [
     title: 'Video AI',
     description: 'Transform static architectural images into dynamic video animations with AI.',
     image: videoAIImg,
-    credits: 20,
+    credits: 1,
     category: 'concept-tools',
   },
 ];

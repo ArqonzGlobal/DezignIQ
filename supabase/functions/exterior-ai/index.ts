@@ -1,136 +1,111 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Max-Age': '86400',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
+};
 
 serve(async (req) => {
-  console.log(`[EXTERIOR-AI] ${new Date().toISOString()} - ${req.method} request received`);
-  
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('[EXTERIOR-AI] Handling CORS preflight request');
-    return new Response('ok', { 
-      headers: corsHeaders,
-      status: 200 
-    })
+  console.log(`[EXTERIOR-AI v4.1] ${new Date().toISOString()} - ${req.method} request received`);
+
+  // Handle CORS
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { 
-        status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
-    console.log('Exterior AI Edge Function called');
+    console.log("Exterior AI v4.1 Edge Function called");
 
-    // Get the API key from environment variables
-    const apiKey = Deno.env.get('MNML_EXTERIOR_API_KEY');
+    const apiKey = Deno.env.get("MNML_EXTERIOR_API_KEY");
     if (!apiKey) {
-      console.error('MNML_EXTERIOR_API_KEY not found');
-      return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return new Response(JSON.stringify({ error: "API key not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Parse the form data from the request
     const formData = await req.formData();
-    const image = formData.get('image') as File;
-    const prompt = formData.get('prompt') as string;
-    const imageType = formData.get('imageType') as string || '3dmass';
-    const scenario = formData.get('scenario') as string || 'creative';
-    const geometry_input = formData.get('geometry_input') as string || '75';
-    const styles = formData.get('styles') as string || 'realistic';
-    const renderspeed = formData.get('renderspeed') as string || 'best';
-
-    console.log('Request parameters:', { 
-      hasImage: !!image, 
-      prompt, 
-      imageType, 
-      scenario, 
-      geometry_input, 
-      styles, 
-      renderspeed 
-    });
+    const image = formData.get("image") as File;
+    const prompt = formData.get("prompt") as string;
 
     if (!image || !prompt) {
-      return new Response(
-        JSON.stringify({ error: 'Image and prompt are required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return new Response(JSON.stringify({ error: "Image and prompt are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Create form data for the mnml API
-    const mnmlFormData = new FormData();
-    mnmlFormData.append('image', image);
-    mnmlFormData.append('prompt', prompt);
-    mnmlFormData.append('imageType', imageType);
-    mnmlFormData.append('scenario', scenario);
-    mnmlFormData.append('geometry_input', geometry_input);
-    mnmlFormData.append('styles', styles);
-    mnmlFormData.append('renderspeed', renderspeed);
+    // NEW v4.1 fields (defaults added for Exterior AI)
+    const imagetype = formData.get("imagetype") || "photo";
+    const camera_angle = formData.get("camera_angle") || "same_as_input";
+    const scene_mood = formData.get("scene_mood") || "auto_daylight";
+    const render_style = formData.get("render_style") || "realistic";
+    const render_scenario = formData.get("render_scenario") || "precise";
+    const context = formData.get("context") || JSON.stringify(["exterior"]);
+    const seed = formData.get("seed") || "";
 
-    console.log('Calling mnml Exterior API...');
+    console.log("Params:", { prompt, imagetype, camera_angle, scene_mood, render_style, render_scenario });
 
-    // Make request to mnml Exterior API
-    const response = await fetch('https://api.mnmlai.dev/v1/exterior', {
-      method: 'POST',
+    // --- Build v4.1 request ---
+    const mnmlForm = new FormData();
+    mnmlForm.append("image", image);
+    mnmlForm.append("expert_name", "exterior"); // IMPORTANT
+    mnmlForm.append("prompt", prompt);
+    mnmlForm.append("imagetype", imagetype);
+    mnmlForm.append("camera_angle", camera_angle);
+    mnmlForm.append("scene_mood", scene_mood);
+    mnmlForm.append("render_style", render_style);
+    mnmlForm.append("render_scenario", render_scenario);
+    mnmlForm.append("context", context);
+    mnmlForm.append("seed", seed);
+
+    console.log("Calling MNML archDiffusion-v41 API...");
+
+    const response = await fetch("https://api.mnmlai.dev/v1/archDiffusion-v41", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
+        "Accept": "application/json",
       },
-      body: mnmlFormData,
+      body: mnmlForm,
     });
 
-    console.log('mnml API response status:', response.status);
+    const text = await response.text();
+    let json;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('mnml API error:', errorText);
-      return new Response(
-        JSON.stringify({ error: `mnml API error: ${response.status} - ${errorText}` }),
-        { 
-          status: response.status, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = { raw: text };
     }
 
-    const result = await response.json();
-    console.log('mnml API result:', result);
+    console.log("MNML v4.1 response status:", response.status);
 
-    return new Response(
-      JSON.stringify(result),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: "MNML API Error", details: json }), {
+        status: response.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-  } catch (error) {
-    console.error('Edge Function error:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Internal server error' 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    return new Response(JSON.stringify(json), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  } catch (err) {
+    console.error("Edge Function error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Internal server error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-})
+});
