@@ -54,6 +54,8 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
 
     setIsLoading(true);
     const startTime = Date.now();
+    const userString = localStorage.getItem('user');
+    const user = userString ? JSON.parse(userString) : null;
     
     try {
       const formData = new FormData();
@@ -64,6 +66,7 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
       formData.append('geometry_input', geometryInput.toString());
       formData.append('styles', styles);
       formData.append('renderspeed', renderSpeed);
+      formData.append('userEmail', user?.mail || '');
 
       console.log('Calling interior-ai edge function...');
       const { data: submitData, error: submitError } = await supabase.functions.invoke('interior-ai', {
@@ -90,9 +93,11 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
 
       // Poll for status
       const pollStatus = async () => {
-        const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
+        const { data: statusData , error: statusError } = await supabase.functions.invoke('check-status', {
           body: { id },
         });
+
+        console.log('Status check response:', { data: statusData, error: statusError });
 
         if (statusError) {
           throw new Error(statusError.message);
@@ -115,7 +120,8 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
             prompt: generatePrompt(),
           });
 
-          updateCredits();
+          // updateCredits();
+          console.log("response data:", statusData);  
           toast({
             title: "Interior Design Complete!",
             description: `Generated in ${Math.round((endTime - startTime) / 1000)}s`,

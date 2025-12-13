@@ -1,4 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { storeImageHistory } from "../mongo/index";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -88,12 +89,22 @@ serve(async (req) => {
     }
 
     console.log('[CHECK-STATUS] Status check successful');
-    return new Response(
-      JSON.stringify(data),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    // storeImageHistory(data.userEmail, data.prompt, data.message?.[0] || '');
+
+    const imageurl = data?.data.message?.[0] || '';
+    const storeResult = await storeImageHistory(
+      "vennilavanmarimuthu@gmail.com",
+      data.prompt || "",
+      imageurl
+    );
+    const responsePayload = {
+      ...data,
+      store: storeResult 
+    };
+
+    return new Response(JSON.stringify(responsePayload), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
+    });
 
   } catch (error) {
     console.error('[CHECK-STATUS] Error:', error)
