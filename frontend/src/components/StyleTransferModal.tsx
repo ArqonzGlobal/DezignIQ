@@ -11,6 +11,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
+import { apiRequest } from "@/utils/steroid";
 import { Upload, Loader2, Download, X, Palette, Zap, Clock } from "lucide-react";
 
 interface StyleTransferModalProps {
@@ -44,105 +45,114 @@ export const StyleTransferModal = ({ isOpen, onClose, onImageGenerated }: StyleT
     }
   };
 
-  const handleSubmit = async () => {
-    if (!sourceImage || !referenceImage) {
-      toast.error("Please upload both source and reference images");
-      return;
+const handleSubmit = async () => {
+  if (!sourceImage || !referenceImage) {
+    toast.error("Please upload both source and reference images");
+    return;
+  }
+
+  setIsLoading(true);
+  setRenderedImageUrl(null);
+
+  const startTime = Date.now();
+  const timer = setInterval(() => {
+    setProcessingTime((Date.now() - startTime) / 1000);
+  }, 100);
+
+  try {
+    // ✅ Build MNML payload
+    const payload = {
+      prompt,
+      strength: strength[0],
+      preserve_structure: preserveStructure,
+      color_preservation: colorPreservation[0],
+    };
+
+    // ✅ Build dynamic form data
+    const formData = new FormData();
+    formData.append("tool", "style-transfer");
+    formData.append("image", sourceImage);              // required
+    formData.append("reference_image", referenceImage); // required
+    formData.append(
+      "payload",
+      JSON.stringify({
+        prompt,
+        strength: strength[0],
+        preserve_structure: preserveStructure,
+        color_preservation: colorPreservation[0],
+      })
+    );
+
+
+    console.log("Calling MNML dynamic API → Style Transfer");
+
+    const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+    if (!res.success) {
+      throw res.error || "Failed to start style transfer";
     }
 
-    setIsLoading(true);
-    setProcessingTime(0);
-    setRenderedImageUrl(null);
-    
-    const startTime = Date.now();
-    const timer = setInterval(() => {
-      setProcessingTime((Date.now() - startTime) / 1000);
-    }, 100);
+    const jobId = res.data.job_id;
 
-    try {
-      const formData = new FormData();
-      formData.append('image', sourceImage);
-      formData.append('reference_image', referenceImage);
-      formData.append('prompt', prompt);
-      formData.append('strength', strength[0].toString());
-      formData.append('preserve_structure', preserveStructure.toString());
-      formData.append('color_preservation', colorPreservation[0].toString());
+    toast.success("Style transfer started");
 
-      const { data, error } = await supabase.functions.invoke('style-transfer', {
-        body: formData,
-      });
+    const POLL_INTERVAL = 4000;
+    const MAX_DURATION = 60 * 2000;
+    const startPollingTime = Date.now();
 
-      clearInterval(timer);
 
-      if (error) {
-        console.error('Style transfer error:', error);
-        toast.error("Style transfer failed. Please try again.");
-        return;
-      }
+    // 🔹 Polling function
+    const pollStatus = async () => {
+      try {
+        const elapsedTime = Date.now() - startPollingTime;
 
-      if (data?.status === 'success' && data?.id) {
-        // Poll for results using the check-status function
-        const pollForResult = async () => {
-          let attempts = 0;
-          const maxAttempts = 60; // 5 minutes with 5-second intervals
+        if (elapsedTime >= MAX_DURATION) {
+          setIsLoading(false);
+
+          toast.success("Generation time out. Please try again later!");
+
+          return;
+        }
+        const res = await apiRequest(`/get-result/${jobId}`, "GET");
+
+        console.log("status:", res);
+
+        if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
+          clearInterval(timer);
+          const endTime = Date.now();
+          setProcessingTime((endTime - startTime) / 1000);
+          setRenderedImageUrl(res.data.message[0]);
+          setIsLoading(false);
+
+          toast.success("Generated succesfully!");
+          return;
+
           
-          while (attempts < maxAttempts) {
-            try {
-              const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-                body: { id: data.id },
-              });
-
-              if (statusError) {
-                console.error('Status check error:', statusError);
-                break;
-              }
-
-              if (statusData?.status === 'success' && statusData?.message && statusData?.message.length > 0) {
-                const endTime = Date.now();
-                setProcessingTime((endTime - startTime) / 1000);
-                const imageUrl = statusData.message[0];
-                setRenderedImageUrl(imageUrl);
-                setIsLoading(false);
-                
-                onImageGenerated?.({
-                  imageUrl,
-                  toolName: 'Style Transfer',
-                  prompt,
-                });
-
-                updateCredits();
-                
-                toast.success("Style transfer completed successfully!");
-                return;
-              } else if (statusData?.status === 'failed') {
-                toast.error("Style transfer failed. Please try again.");
-                return;
-              }
-
-              // Wait 5 seconds before next attempt
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              attempts++;
-            } catch (pollError) {
-              console.error('Polling error:', pollError);
-              break;
-            }
-          }
-          
-          toast.error("Style transfer timed out. Please try again.");
-        };
-
-        pollForResult();
-      } else {
-        toast.error("Failed to start style transfer process");
+        } else {
+          setTimeout(pollStatus, POLL_INTERVAL);
+        }
+      } catch (error) {
+        console.log(error);
+        setIsLoading(false);
+        clearInterval(timer);
+        toast.success("Generation failed. Please try again later!");
       }
-    } catch (error) {
-      clearInterval(timer);
-      console.error('Style transfer error:', error);
-      toast.error("An error occurred during style transfer");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    setTimeout(pollStatus, 3000);
+
+  } catch (error) {
+    clearInterval(timer);
+    setIsLoading(false);
+    console.error("Style transfer error:", error);
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : "An error occurred during style transfer"
+    );
+  }
+};
+
 
   if (!isOpen) return null;
 

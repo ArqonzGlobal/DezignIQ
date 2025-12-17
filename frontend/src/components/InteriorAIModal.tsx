@@ -8,9 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { RenderingOptions } from "./RenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import { updateCredits } from "@/utils/steroid";
-
+import {  apiRequest } from "@/utils/steroid";
 interface InteriorAIModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,6 +29,7 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
   const [geometryInput, setGeometryInput] = useState(75);
   const [styles, setStyles] = useState('realistic');
   const [renderSpeed, setRenderSpeed] = useState('best');
+  const endpoint = "interior";
 
   const generatePrompt = () => {
     const basePrompt = lightingMode === 'morning' 
@@ -46,100 +45,102 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
     if (!uploadedImage) {
       toast({
         title: "No image uploaded",
-        description: "Please upload an interior image first.",
+        description: "Please upload an image first.",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
+    setRenderedImageUrl(null);
     const startTime = Date.now();
-    const userString = localStorage.getItem('user');
-    const user = userString ? JSON.parse(userString) : null;
-    
+
     try {
       const formData = new FormData();
-      formData.append('image', uploadedImage);
-      formData.append('prompt', generatePrompt());
-      formData.append('imageType', imageType);
-      formData.append('scenario', scenario);
-      formData.append('geometry_input', geometryInput.toString());
-      formData.append('styles', styles);
-      formData.append('renderspeed', renderSpeed);
-      formData.append('userEmail', user?.mail || '');
+      formData.append("image", uploadedImage);
+      formData.append("prompt", generatePrompt());
+      formData.append("endpoint", endpoint);
+      formData.append("imageType", imageType);
+      formData.append("scenario", scenario);
+      formData.append("geometry_input", geometryInput.toString());
+      formData.append("styles", styles);
+      formData.append("renderspeed", renderSpeed);
 
-      console.log('Calling interior-ai edge function...');
-      const { data: submitData, error: submitError } = await supabase.functions.invoke('interior-ai', {
-        body: formData,
-      });
+      // 🔹 Submit job
+      const submitRes = await apiRequest("/generate-image", "POST", formData, true);
 
-      console.log('Edge function response:', { data: submitData, error: submitError });
-
-      if (submitError) {
-        console.error('Submit error details:', submitError);
-        throw new Error(`Failed to send request: ${submitError.message || 'Unknown error'}`);
+      if (!submitRes.success) {
+        throw submitRes.error;
       }
 
-      if (submitData.error) {
-        throw new Error(submitData.error);
-      }
-
-      const { id } = submitData;
+      const jobId = submitRes.data.job_id;
 
       toast({
         title: "Processing Started",
-        description: "Your interior design is being generated. Please wait...",
+        description: "AI generation is in progress. Please wait...",
       });
 
-      // Poll for status
+      const POLL_INTERVAL = 4000;
+      const MAX_DURATION = 60 * 2000;
+      const startPollingTime = Date.now();
+
+
+      // 🔹 Polling function
       const pollStatus = async () => {
-        const { data: statusData , error: statusError } = await supabase.functions.invoke('check-status', {
-          body: { id },
-        });
+        try {
+          const elapsedTime = Date.now() - startPollingTime;
 
-        console.log('Status check response:', { data: statusData, error: statusError });
+          if (elapsedTime >= MAX_DURATION) {
+            setIsLoading(false);
 
-        if (statusError) {
-          throw new Error(statusError.message);
-        }
+            toast({
+              title: "Generation Timeout",
+              description: "Image generation is taking too long. Please try again.",
+              variant: "destructive",
+            });
 
-        if (statusData.error) {
-          throw new Error(statusData.error);
-        }
+            return;
+          }
+          const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-        if (statusData.status === 'success' && statusData.message && statusData.message.length > 0) {
-          const endTime = Date.now();
-          setProcessingTime((endTime - startTime) / 1000);
-          const imageUrl = statusData.message[0];
-          setRenderedImageUrl(imageUrl);
+          console.log("status:", res.status);
+          console.log("message:", res.message);
+
+          if (res.status === "success" && res.message && res.message.length > 0) {
+            const endTime = Date.now();
+            setProcessingTime((endTime - startTime) / 1000);
+            setRenderedImageUrl(res.data.image_url);
+            setIsLoading(false);
+
+            toast({
+              title: "Generation Complete!",
+              description: `Image generated in ${Math.round(
+                (endTime - startTime) / 1000
+              )}s`,
+            });
+          } else {
+            setTimeout(pollStatus, 4000);
+          }
+        } catch (error) {
+          console.log(error);
           setIsLoading(false);
-          
-          onImageGenerated?.({
-            imageUrl,
-            toolName: 'Interior AI',
-            prompt: generatePrompt(),
-          });
 
-          // updateCredits();
-          console.log("response data:", statusData);  
           toast({
-            title: "Interior Design Complete!",
-            description: `Generated in ${Math.round((endTime - startTime) / 1000)}s`,
-          });
-        } else if (statusData.status === 'failed') {
-          throw new Error('Interior design generation failed');
-        } else {
-          setTimeout(pollStatus, 2000);
+            title: "Generation Failed",
+            description:"There was an error generating your image.",
+            variant: "destructive",
+          })
         }
       };
 
-      setTimeout(pollStatus, 2000);
-      
+      setTimeout(pollStatus, POLL_INTERVAL);
     } catch (error) {
+      console.error("Error:", error);
       setIsLoading(false);
+
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "There was an error generating your interior design. Please try again.",
+        description:"There was an error generating your image.",
         variant: "destructive",
       });
     }

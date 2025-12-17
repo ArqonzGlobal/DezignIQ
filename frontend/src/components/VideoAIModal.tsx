@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { SketchUploader } from "./SketchUploader";
 import { Video, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { apiRequest } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
 
 interface VideoAIModalProps {
@@ -52,83 +52,91 @@ export const VideoAIModal = ({ isOpen, onClose }: VideoAIModalProps) => {
 
     setIsLoading(true);
     const startTime = Date.now();
-    
+
     try {
-      const formData = new FormData();
-      formData.append('image', uploadedImage);
-      formData.append('prompt', prompt);
-      formData.append('duration', duration.toString());
-      formData.append('cfg_scale', cfgScale.toString());
-      formData.append('aspect_ratio', aspectRatio);
-      formData.append('movement_type', movementType);
-      formData.append('direction', direction);
+      // 🔹 Build payload
+      const payload: any = {
+        prompt: prompt.trim(),
+        duration: duration.toString(),
+        cfg_scale: cfgScale.toString(),
+        aspect_ratio: aspectRatio,
+        movement_type: movementType,
+        direction: direction,
+      };
+
       if (negativePrompt.trim()) {
-        formData.append('negative_prompt', negativePrompt);
+        payload.negative_prompt = negativePrompt.trim();
       }
 
-      console.log('Calling video-ai edge function...');
-      const { data: submitData, error: submitError } = await supabase.functions.invoke('video-ai', {
-        body: formData,
-      });
+      // 🔹 Build FormData for dynamic API
+      const formData = new FormData();
+      formData.append("tool", "video-ai");
+      formData.append("image", uploadedImage);
+      formData.append("payload", JSON.stringify(payload));
 
-      console.log('Edge function response:', { data: submitData, error: submitError });
+      console.log("Calling MNML dynamic API → Video AI");
 
-      if (submitError) {
-        console.error('Submit error details:', submitError);
-        throw new Error(`Failed to send request: ${submitError.message || 'Unknown error'}`);
+      const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+      if (!res.success) {
+        throw res.error || "Failed to start video generation";
       }
 
-      if (submitData.error) {
-        throw new Error(submitData.error);
-      }
-
-      const { id } = submitData;
-      setVideoId(id);
+      const jobId = res.data.job_id;
+      setVideoId(jobId);
 
       toast({
         title: "Processing Started",
         description: "Your video is being generated. This may take a few minutes...",
       });
 
-      // Poll for status
+      // 🔁 Poll for result
       const pollStatus = async () => {
-        const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-          body: { id },
-        });
+        const statusRes = await apiRequest(`/get-result/${jobId}`, "GET");
 
-        if (statusError) {
-          throw new Error(statusError.message);
+        if (!statusRes.success) {
+          throw statusRes.error || "Status check failed";
         }
 
-        if (statusData.error) {
-          throw new Error(statusData.error);
-        }
+        const status = statusRes.data.status;
 
-        if (statusData.status === 'success' && statusData.message && statusData.message.length > 0) {
+        if (status === "success") {
           const endTime = Date.now();
           setProcessingTime((endTime - startTime) / 1000);
-          setVideoUrl(statusData.message[0]);
+
+          const videoUrl = Array.isArray(statusRes.data.message)
+            ? statusRes.data.message[0]
+            : statusRes.data.message;
+
+          setVideoUrl(videoUrl);
           setIsLoading(false);
-          updateCredits(); 
-          
+
+          // updateCredits();
+
           toast({
             title: "Video Generation Complete!",
-            description: `Generated in ${Math.round((endTime - startTime) / 1000)}s`,
+            description: `Generated in ${Math.round(
+              (endTime - startTime) / 1000
+            )}s`,
           });
-        } else if (statusData.status === 'failed') {
-          throw new Error('Video generation failed');
+
+        } else if (status === "failed") {
+          throw new Error("Video generation failed");
         } else {
           setTimeout(pollStatus, 3000);
         }
       };
 
       setTimeout(pollStatus, 3000);
-      
+
     } catch (error) {
       setIsLoading(false);
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "There was an error generating your video. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error generating your video.",
         variant: "destructive",
       });
     }
@@ -176,7 +184,7 @@ export const VideoAIModal = ({ isOpen, onClose }: VideoAIModalProps) => {
             )}
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              20 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

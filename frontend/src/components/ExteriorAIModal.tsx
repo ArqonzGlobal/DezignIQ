@@ -8,8 +8,9 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { ExteriorRenderingOptions } from "./ExteriorRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import { updateCredits } from "@/utils/steroid";
+import { apiRequest } from "@/utils/steroid";
+
+const endpoint = "exterior";
 
 interface ExteriorAIModalProps {
   isOpen: boolean;
@@ -46,100 +47,114 @@ export const ExteriorAIModal = ({ isOpen, onClose, onImageGenerated }: ExteriorA
     if (!uploadedImage) {
       toast({
         title: "No image uploaded",
-        description: "Please upload an exterior image first.",
+        description: "Please upload an exterior image.",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
+    setRenderedImageUrl(null);
     const startTime = Date.now();
-    
+
     try {
       const formData = new FormData();
-      formData.append('image', uploadedImage);
-      formData.append('prompt', generatePrompt());
-      formData.append('imageType', imageType);
-      formData.append('scenario', scenario);
-      formData.append('geometry_input', geometryInput.toString());
-      formData.append('styles', styles);
-      formData.append('renderspeed', renderSpeed);
+      formData.append("image", uploadedImage);
+      formData.append("prompt", generatePrompt());
 
-      console.log('Calling exterior-ai edge function...');
-      const { data: submitData, error: submitError } = await supabase.functions.invoke('exterior-ai', {
-        body: formData,
-      });
+      formData.append("expert_name", "exterior");
+      formData.append("imagetype", "photo");
 
-      console.log('Edge function response:', { data: submitData, error: submitError });
+      formData.append(
+        "scene_mood",
+        lightingMode === "morning" ? "auto_daylight" : "evening_lighting"
+      );
 
-      if (submitError) {
-        console.error('Submit error details:', submitError);
-        throw new Error(`Failed to send request: ${submitError.message || 'Unknown error'}`);
+      formData.append("camera_angle", "same_as_input");
+      formData.append("render_style", "realistic");
+      formData.append("render_scenario", scenario); // precise / creative
+      formData.append("context", JSON.stringify(["exterior"]));
+
+
+      // Submit to backend
+      const submitRes = await apiRequest("/generate-image", "POST", formData, true);
+
+      if (!submitRes.success) {
+        throw submitRes.error;
       }
 
-      if (submitData.error) {
-        throw new Error(submitData.error);
-      }
-
-      const { id } = submitData;
+      const jobId = submitRes.data.job_id;
 
       toast({
         title: "Processing Started",
-        description: "Your exterior design is being generated. Please wait...",
+        description: "Exterior design is being generated. Please wait...",
       });
 
-      // Poll for status
+      // Poll for result
+      const POLL_INTERVAL = 4000;
+      const MAX_DURATION = 60 * 2000;
+      const startPollingTime = Date.now();
+
+
+      // 🔹 Polling function
       const pollStatus = async () => {
-        const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-          body: { id },
-        });
+        try {
+          const elapsedTime = Date.now() - startPollingTime;
 
-        if (statusError) {
-          throw new Error(statusError.message);
-        }
+          if (elapsedTime >= MAX_DURATION) {
+            setIsLoading(false);
 
-        if (statusData.error) {
-          throw new Error(statusData.error);
-        }
+            toast({
+              title: "Generation Timeout",
+              description: "Image generation is taking too long. Please try again.",
+              variant: "destructive",
+            });
 
-        if (statusData.status === 'success' && statusData.message && statusData.message.length > 0) {
-          const endTime = Date.now();
-          setProcessingTime((endTime - startTime) / 1000);
-          const imageUrl = statusData.message[0];
-          setRenderedImageUrl(imageUrl);
+            return;
+          }
+          const res = await apiRequest(`/get-result/${jobId}`, "GET");
+
+          console.log("status:", res);
+
+          if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
+            const endTime = Date.now();
+            setProcessingTime((endTime - startTime) / 1000);
+            setRenderedImageUrl(res.data.message[0]);
+            setIsLoading(false);
+
+            toast({
+              title: "Generation Complete!",
+              description: `Image generated in ${Math.round(
+                (endTime - startTime) / 1000
+              )}s`,
+            });
+          } else {
+            setTimeout(pollStatus, 4000);
+          }
+        } catch (error) {
+          console.log(error);
           setIsLoading(false);
-          
-          onImageGenerated?.({
-            imageUrl,
-            toolName: 'Exterior AI',
-            prompt: generatePrompt(),
-          });
 
-          updateCredits();
-          
           toast({
-            title: "Exterior Design Complete!",
-            description: `Generated in ${Math.round((endTime - startTime) / 1000)}s`,
-          });
-        } else if (statusData.status === 'failed') {
-          throw new Error('Exterior design generation failed');
-        } else {
-          setTimeout(pollStatus, 2000);
+            title: "Generation Failed",
+            description:"There was an error generating your image.",
+            variant: "destructive",
+          })
         }
       };
 
-      setTimeout(pollStatus, 2000);
-      
+      setTimeout(pollStatus, POLL_INTERVAL);
     } catch (error) {
+      console.error("Error:", error);
       setIsLoading(false);
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "There was an error generating your exterior design. Please try again.",
+        description: "An error occurred while generating the image.",
         variant: "destructive",
       });
     }
   };
-
+  
   const handleImageUpload = (file: File) => {
     setUploadedImage(file);
     setRenderedImageUrl(null);

@@ -7,9 +7,9 @@ import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { supabase } from "@/integrations/supabase/client";
 import { updateCredits } from "@/utils/steroid";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast"
+import { apiRequest } from "@/utils/steroid";
 import { Upload, Loader2, Download, X, Sparkles, Zap, Clock } from "lucide-react";
 
 // Fixed: Removed Dialog dependencies to use custom modal structure
@@ -41,103 +41,125 @@ export const RenderEnhancerModal = ({ isOpen, onClose, onImageGenerated }: Rende
 
   const handleSubmit = async () => {
     if (!image || !prompt.trim()) {
-      toast.error("Please upload an image and provide enhancement description");
+       toast({
+          title: "Generation failed",
+          description: "Please upload an image and provide enhancement description",
+          variant: "destructive",
+        });
       return;
     }
 
     setIsLoading(true);
-    setProcessingTime(0);
     setRenderedImageUrl(null);
-    
+    setProcessingTime(0);
+
     const startTime = Date.now();
     const timer = setInterval(() => {
       setProcessingTime((Date.now() - startTime) / 1000);
     }, 100);
 
     try {
-      const formData = new FormData();
-      formData.append('image', image);
-      formData.append('prompt', prompt);
-      formData.append('geometry', geometry[0].toString());
-      formData.append('creativity', creativity[0].toString());
-      formData.append('dynamic', dynamic[0].toString());
-      formData.append('sharpen', sharpen[0].toString());
-      if (seed) formData.append('seed', seed);
+      // 🔹 Build payload (JSON, not FormData)
+      const payload: any = {
+        prompt: prompt.trim(),
+        geometry: geometry[0],
+        creativity: creativity[0],
+        dynamic: dynamic[0],
+        sharpen: sharpen[0],
+      };
 
-      const { data, error } = await supabase.functions.invoke('render-enhancer', {
-        body: formData,
+      if (seed) payload.seed = seed;
+
+      // 🔹 Build FormData for dynamic endpoint
+      const formData = new FormData();
+      formData.append("tool", "render-enhancer");
+      formData.append("image", image);
+      formData.append("payload", JSON.stringify(payload));
+
+      console.log("Calling MNML dynamic API → Render Enhancer");
+
+      const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+      if (!res.success) {
+        throw res.error || "Failed to submit Render Enhancer job";
+      }
+
+      const jobId = res.data.job_id;
+
+      toast({
+        title: "Generation started",
+        description: "Render enhancement started",
+        variant: "default",
       });
 
-      clearInterval(timer);
+      // 🔁 Poll for result
+      const POLL_INTERVAL = 4000;
+      const MAX_DURATION = 60 * 2000;
+      const startPollingTime = Date.now();
 
-      if (error) {
-        console.error('Render enhancer error:', error);
-        toast.error("Render enhancement failed. Please try again.");
-        return;
-      }
 
-      if (data?.status === 'success' && data?.id) {
-        // Poll for results using the check-status function
-        const pollForResult = async () => {
-          let attempts = 0;
-          const maxAttempts = 60;
-          
-          while (attempts < maxAttempts) {
-            try {
-              const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-                body: { id: data.id },
-              });
+      // 🔹 Polling function
+      const pollStatus = async () => {
+        try {
+          const elapsedTime = Date.now() - startPollingTime;
 
-              if (statusError) {
-                console.error('Status check error:', statusError);
-                break;
-              }
+          if (elapsedTime >= MAX_DURATION) {
+            clearInterval(timer);
+            setIsLoading(false);
 
-              if (statusData?.status === 'success' && statusData?.message && statusData?.message.length > 0) {
-                const endTime = Date.now();
-                setProcessingTime((endTime - startTime) / 1000);
-                const imageUrl = statusData.message[0];
-                setRenderedImageUrl(imageUrl);
-                setIsLoading(false);
-                
-                onImageGenerated?.({
-                  imageUrl,
-                  toolName: 'Render Enhancer',
-                  prompt,
-                });
-                
-                updateCredits();
+            toast({
+              title: "Generation Timeout",
+              description: "Image generation is taking too long. Please try again.",
+              variant: "destructive",
+            });
 
-                toast.success("Render enhancement completed successfully!");
-                return;
-              } else if (statusData?.status === 'failed') {
-                toast.error("Render enhancement failed. Please try again.");
-                return;
-              }
-
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              attempts++;
-            } catch (pollError) {
-              console.error('Polling error:', pollError);
-              break;
-            }
+            return;
           }
-          
-          toast.error("Render enhancement timed out. Please try again.");
-        };
+          const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-        pollForResult();
-      } else {
-        toast.error("Failed to start render enhancement process");
-      }
+          if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
+            clearInterval(timer);
+            const endTime = Date.now();
+            setProcessingTime((endTime - startTime) / 1000);
+            setRenderedImageUrl(res.data.message[0]);
+            setIsLoading(false);
+
+            toast({
+              title: "Generation Complete!",
+              description: `Image generated in ${Math.round(
+                (endTime - startTime) / 1000
+              )}s`,
+            });
+          } else {
+            setTimeout(pollStatus, 4000);
+          }
+        } catch (error) {
+          clearInterval(timer);
+          console.log(error);
+          setIsLoading(false);
+
+          toast({
+            title: "Generation Failed",
+            description:"There was an error generating your image.",
+            variant: "destructive",
+          })
+        }
+      };
+
+      setTimeout(pollStatus, POLL_INTERVAL);
+
     } catch (error) {
       clearInterval(timer);
-      console.error('Render enhancer error:', error);
-      toast.error("An error occurred during render enhancement");
-    } finally {
       setIsLoading(false);
+      console.error(error);
+       toast({
+          title: "Generation Failed",
+          description: "An error occurred during render enhancement",
+          variant: "destructive",
+        });
     }
   };
+
 
   if (!isOpen) return null;
 
@@ -167,7 +189,7 @@ export const RenderEnhancerModal = ({ isOpen, onClose, onImageGenerated }: Rende
             )}
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              20 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

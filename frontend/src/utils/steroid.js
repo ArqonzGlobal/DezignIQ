@@ -1,15 +1,26 @@
 import axios from "axios";
 import { toast } from "sonner";
 
-let BASE_URL = "/api";
+let BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
 
 export async function apiRequest(path, method = "GET", data = null, isForm = false) {
+  console.log("api path", path)
+  let baseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000" ;
+  if (path === "/arqonz-signin" || path === "/get-credits") {
+    baseUrl = "/api";
+  }
+ 
+  console.log("API Base URL:", baseUrl);
+  
   try {
     const config = {
       method,
-      url: `${BASE_URL}${path}`,
+      url: `${baseUrl}${path}`,
       headers: {},
     };
+
+    console.log("API Request:", config.url);
 
     if (data) {
       if (isForm) {
@@ -20,9 +31,7 @@ export async function apiRequest(path, method = "GET", data = null, isForm = fal
       }
     }
 
-    console.log("API Request Config:", config);
-
-    const res = await axios(config);  
+    const res = await axios(config);
     console.log("API Response:", res);
     return res.data;
   } catch (err) {

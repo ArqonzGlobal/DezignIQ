@@ -9,8 +9,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Wand2, Zap, Clock, X, Lightbulb } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 import { updateCredits } from "@/utils/steroid";
+import { apiRequest } from "@/utils/steroid";
 
 interface ImagineAIModalProps {
   isOpen: boolean;
@@ -28,127 +28,128 @@ export const ImagineAIModal = ({ isOpen, onClose, onImageGenerated }: ImagineAIM
   const [isLoading, setIsLoading] = useState(false);
   const [processingTime, setProcessingTime] = useState<number | null>(null);
 
-  const handleSubmit = async () => {
-    if (!prompt.trim()) {
-      toast({
-        title: "Missing prompt",
-        description: "Please provide a description for the architectural design.",
-        variant: "destructive",
-      });
-      return;
+const handleSubmit = async () => {
+  if (!prompt.trim()) {
+    toast({
+      title: "Missing prompt",
+      description: "Please provide a description for the architectural design.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  if (prompt.length > 2000) {
+    toast({
+      title: "Prompt too long",
+      description: "Please keep your prompt under 2000 characters.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsLoading(true);
+  const startTime = Date.now();
+
+  try {
+    // Build payload for Imagine AI
+    const payload: any = {
+      prompt: prompt.trim(),
+      render_type: renderType,
+      aspect_ratio: aspectRatio,
+      style_strength: styleStrength[0],
+    };
+
+    if (seed.trim()) {
+      payload.seed = parseInt(seed);
     }
 
-    if (prompt.length > 2000) {
-      toast({
-        title: "Prompt too long",
-        description: "Please keep your prompt under 2000 characters.",
-        variant: "destructive",
-      });
-      return;
+    // Dynamic MNML request
+    const formData = new FormData();
+    formData.append("tool", "imagine-ai"); // 🔑 dynamic tool
+    formData.append("payload", JSON.stringify(payload));
+
+    console.log("Calling MNML dynamic API → Imagine AI");
+
+    const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+    if (!res.success) {
+      throw res.error || "Failed to submit Imagine AI job";
     }
 
-    if (!supabase) {
-      toast({
-        title: "Configuration Error",
-        description: "Supabase is not properly configured. Please check your project settings.",
-        variant: "destructive",
-      });
-      return;
-    }
+    const jobId = res.data.job_id;
 
-    setIsLoading(true);
-    const startTime = Date.now();
-    
-    try {
-      // Prepare request body
-      const requestBody: any = {
-        prompt: prompt.trim(),
-        render_type: renderType,
-        aspect_ratio: aspectRatio,
-        style_strength: styleStrength[0]
-      };
+    toast({
+      title: "Generation Started",
+      description: "Your visualization is being generated. Please wait...",
+    });
 
-      if (seed.trim()) {
-        requestBody.seed = parseInt(seed);
-      }
+    const POLL_INTERVAL = 4000;
+    const MAX_DURATION = 60 * 2000;
+    const startPollingTime = Date.now();
 
-      // Call the imagine-ai Edge Function
-      console.log('Calling imagine-ai edge function...');
-      const { data: submitData, error: submitError } = await supabase.functions.invoke('imagine-ai', {
-        body: requestBody,
-      });
 
-      console.log('Edge function response:', { data: submitData, error: submitError });
+    // 🔹 Polling function
+    const pollStatus = async () => {
+      try {
+        const elapsedTime = Date.now() - startPollingTime;
 
-      if (submitError) {
-        console.error('Submit error details:', submitError);
-        throw new Error(`Failed to send a request to the Edge Function: ${submitError.message || 'Unknown error'}`);
-      }
+        if (elapsedTime >= MAX_DURATION) {
+          setIsLoading(false);
 
-      if (submitData.error) {
-        throw new Error(submitData.error);
-      }
+          toast({
+            title: "Generation Timeout",
+            description: "Image generation is taking too long. Please try again.",
+            variant: "destructive",
+          });
 
-      const { prediction_id } = submitData;
-
-      toast({
-        title: "Generation Started",
-        description: "Your architectural visualization is being created. Please wait...",
-      });
-
-      // Poll for status
-      const pollStatus = async () => {
-        const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-          body: { id: prediction_id },
-        });
-
-        if (statusError) {
-          throw new Error(statusError.message);
+          return;
         }
+        const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-        if (statusData.error) {
-          throw new Error(statusData.error);
-        }
+        console.log("status:", res);
 
-        if (statusData.status === 'success' && statusData.message && statusData.message.length > 0) {
+        if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
           const endTime = Date.now();
           setProcessingTime((endTime - startTime) / 1000);
-          const imageUrl = statusData.message[0];
-          setResultImageUrl(imageUrl);
+          setResultImageUrl(res.data.message[0]);
           setIsLoading(false);
-          
-          onImageGenerated?.({
-            imageUrl,
-            toolName: 'Imagine AI',
-            prompt: prompt.trim(),
-          });
 
-          updateCredits();
-          
           toast({
             title: "Generation Complete!",
-            description: `Created in ${Math.round((endTime - startTime) / 1000)}s`,
+            description: `Image generated in ${Math.round(
+              (endTime - startTime) / 1000
+            )}s`,
           });
-        } else if (statusData.status === 'failed') {
-          throw new Error('Generation failed');
         } else {
-          // Still processing, poll again
-          setTimeout(pollStatus, 2000);
+          setTimeout(pollStatus, 4000);
         }
-      };
+      } catch (error) {
+        console.log(error);
+        setIsLoading(false);
 
-      // Start polling
-      setTimeout(pollStatus, 2000);
-      
-    } catch (error) {
-      setIsLoading(false);
-      toast({
-        title: "Generation Failed",
-        description: error instanceof Error ? error.message : "There was an error generating your design. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+        toast({
+          title: "Generation Failed",
+          description:"There was an error generating your image.",
+          variant: "destructive",
+        })
+      }
+    };
+
+    setTimeout(pollStatus, 2000);
+
+  } catch (error) {
+    setIsLoading(false);
+    toast({
+      title: "Generation Failed",
+      description:
+        error instanceof Error
+          ? error.message
+          : "There was an error generating your design.",
+      variant: "destructive",
+    });
+  }
+};
+
 
   if (!isOpen) return null;
 

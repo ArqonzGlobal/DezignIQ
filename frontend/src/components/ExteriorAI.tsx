@@ -40,9 +40,6 @@ export const ExteriorAI = () => {
     const startTime = Date.now();
     
     try {
-      // Note: This is a mock implementation since we can't directly call external APIs from frontend
-      // In a real implementation, this would go through a backend service or Supabase Edge Function
-      
       toast({
         title: "API Integration Required",
         description: "To use this feature, you'll need to set up backend integration with the mnml API.",

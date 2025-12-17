@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SketchUploader } from "./SketchUploader";
 import { Sparkles, Zap, X, Copy, Check } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { apiRequest } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
 
 interface PromptGeneratorModalProps {
@@ -33,43 +33,51 @@ export const PromptGeneratorModal = ({ isOpen, onClose }: PromptGeneratorModalPr
     }
 
     setIsLoading(true);
-    
+
     try {
-      const formData = new FormData();
-      formData.append('image', uploadedImage);
+      // 🔹 Build payload
+      const payload: any = {};
       if (keywords.trim()) {
-        formData.append('prompt', keywords);
+        payload.prompt = keywords.trim();
       }
 
-      console.log('Calling prompt-generator edge function...');
-      const { data, error } = await supabase.functions.invoke('prompt-generator', {
-        body: formData,
+      // 🔹 Build FormData for dynamic API
+      const formData = new FormData();
+      formData.append("tool", "prompt-generator");
+      formData.append("image", uploadedImage);
+      formData.append("payload", JSON.stringify(payload));
+
+      console.log("Calling MNML dynamic API → Prompt Generator");
+
+      const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+      if (!res.success) {
+        throw res.error || "Failed to generate prompt";
+      }
+
+      // 🔹 MNML instant tool result
+      const generatedPrompt = res.data.result?.message;
+
+      if (!generatedPrompt) {
+        throw new Error("No prompt returned from MNML");
+      }
+
+      setGeneratedPrompt(generatedPrompt);
+
+      // updateCredits();
+
+      toast({
+        title: "Prompt Generated!",
+        description: "Your architectural prompt is ready.",
       });
 
-      console.log('Edge function response:', { data, error });
-
-      if (error) {
-        console.error('Submit error details:', error);
-        throw new Error(`Failed to generate prompt: ${error.message || 'Unknown error'}`);
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      if (data.message) {
-        setGeneratedPrompt(data.message);
-        updateCredits();
-        toast({
-          title: "Prompt Generated!",
-          description: "Your architectural prompt is ready.",
-        });
-      }
-      
     } catch (error) {
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "There was an error generating your prompt. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error generating your prompt.",
         variant: "destructive",
       });
     } finally {
@@ -121,7 +129,7 @@ export const PromptGeneratorModal = ({ isOpen, onClose }: PromptGeneratorModalPr
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              5 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

@@ -7,9 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast"
 import { Upload, Loader2, Download, X, Image, Zap, Clock } from "lucide-react";
 
 // Fixed: Removed Dialog dependencies to use custom modal structure
@@ -37,96 +37,121 @@ export const FourKUpscalerModal = ({ isOpen, onClose, onImageGenerated }: FourKU
 
   const handleSubmit = async () => {
     if (!image) {
-      toast.error("Please upload an image");
+       toast({
+              title: "Missing Image",
+              description: "Please uploade an Image!",
+              variant: "destructive",
+            });
       return;
     }
 
     setIsLoading(true);
-    setProcessingTime(0);
     setRenderedImageUrl(null);
-    
+    setProcessingTime(0);
+
     const startTime = Date.now();
-    const timer = setInterval(() => {
-      setProcessingTime((Date.now() - startTime) / 1000);
-    }, 100);
 
     try {
-      const formData = new FormData();
-      formData.append('image', image);
-      formData.append('scale', scale);
-      formData.append('face_enhance', faceEnhance.toString());
+      // 🔹 Build payload
+      const payload = {
+        prompt,
+        // add tool-specific fields here
+      };
 
-      const { data, error } = await supabase.functions.invoke('4k-upscaler', {
-        body: formData,
+      // 🔹 Build dynamic request
+      const formData = new FormData();
+      formData.append("tool", "upscale-4k");
+      formData.append("image", image);
+      formData.append("payload", JSON.stringify(payload));
+
+      const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+      if (!res.success) {
+        throw res.error || "Failed to start generation";
+      }
+
+      const jobId = res.data.result.id;
+
+       toast({
+        title: "Processing.....",
+        description: "Process Started.",
+        variant: "default",
       });
 
-      clearInterval(timer);
+      const POLL_INTERVAL = 4000;
+      const MAX_DURATION = 60 * 2000; // 2 minutes
+      const startPollingTime = Date.now();
 
-      if (error) {
-        console.error('4K upscaler error:', error);
-        toast.error("4K upscaling failed. Please try again.");
-        return;
-      }
+      const pollStatus = async () => {
+        try {
+          const elapsedTime = Date.now() - startPollingTime;
 
-      if (data?.status === 'success' && data?.id) {
-        // Poll for results using the check-status function
-        const pollForResult = async () => {
-          let attempts = 0;
-          const maxAttempts = 60;
-          
-          while (attempts < maxAttempts) {
-            try {
-              const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-                body: { id: data.id },
-              });
+          // ⛔ Timeout
+          if (elapsedTime >= MAX_DURATION) {
+            setIsLoading(false);
 
-              if (statusError) {
-                console.error('Status check error:', statusError);
-                break;
-              }
+            toast({
+              title: "Generation Timeout",
+              description: "Image generation is taking too long. Please try again.",
+              variant: "destructive",
+            });
 
-              if (statusData?.status === 'success' && statusData?.message && statusData?.message.length > 0) {
-                const endTime = Date.now();
-                setProcessingTime((endTime - startTime) / 1000);
-                const imageUrl = statusData.message[0];
-                setRenderedImageUrl(imageUrl);
-                setIsLoading(false);
-                
-                onImageGenerated?.({
-                  imageUrl,
-                  toolName: '4K Upscaler',
-                });
-
-                updateCredits();
-                
-                toast.success("4K upscaling completed successfully!");
-                return;
-              } else if (statusData?.status === 'failed') {
-                toast.error("4K upscaling failed. Please try again.");
-                return;
-              }
-
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              attempts++;
-            } catch (pollError) {
-              console.error('Polling error:', pollError);
-              break;
-            }
+            return;
           }
-          
-          toast.error("4K upscaling timed out. Please try again.");
-        };
 
-        pollForResult();
-      } else {
-        toast.error("Failed to start 4K upscaling process");
-      }
+          const statusRes = await apiRequest(`/get-result/${jobId}`, "GET");
+          console.log("status:", statusRes);
+
+          if (
+            statusRes?.data?.status === "success" &&
+            statusRes?.data?.message &&
+            statusRes.data.message.length > 0
+          ) {
+            const endTime = Date.now();
+
+            setProcessingTime((endTime - startTime) / 1000);
+            setRenderedImageUrl(statusRes.data.message[0]);
+            setIsLoading(false);
+
+            toast({
+              title: "Generation Complete!",
+              description: `Image generated in ${Math.round(
+                (endTime - startTime) / 1000
+              )}s`,
+            });
+
+            return;
+          }
+
+          // ⏳ Still processing → poll again
+          setTimeout(pollStatus, POLL_INTERVAL);
+
+        } catch (error) {
+          console.error(error);
+          setIsLoading(false);
+
+          toast({
+            title: "Generation Failed",
+            description: "There was an error generating your image.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      // ▶️ Start polling
+      pollStatus();
+
     } catch (error) {
-      clearInterval(timer);
-      console.error('4K upscaler error:', error);
-      toast.error("An error occurred during 4K upscaling");
-    } finally {
       setIsLoading(false);
+
+      toast({
+        title: "Generation Failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error generating your image.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -158,7 +183,7 @@ export const FourKUpscalerModal = ({ isOpen, onClose, onImageGenerated }: FourKU
             )}
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              30 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

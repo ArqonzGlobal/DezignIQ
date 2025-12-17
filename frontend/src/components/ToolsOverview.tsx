@@ -9,9 +9,7 @@ import renderPreview from "@/assets/render-enhancer-preview.jpg";
 import stylePreview from "@/assets/style-transfer-preview.jpg";
 import sketchToImagePreview from "@/assets/sketch-to-image-preview.png";
 import fourKUpscalerImg from "@/assets/DezignIQ/4KUpscaler.png";
-import aiEraserImg from "@/assets/DezignIQ/AIEraser.png";
 import imagineAIImg from "@/assets/DezignIQ/ImagineAI.png";
-import inpaintingAIImg from "@/assets/DezignIQ/InpaintingAI.png";
 import promptGeneratorImg from "@/assets/DezignIQ/PromptGenerator.png";
 import videoAIImg from "@/assets/DezignIQ/VideoAI.png";
 import virtualStagingImg from "@/assets/DezignIQ/VirtualStaging.png";
@@ -20,12 +18,10 @@ interface ToolsOverviewProps {
   onLaunchInteriorAI: () => void;
   onLaunchExteriorAI: () => void;
   onLaunchSketchToImage: () => void;
-  onLaunchInpaintingAI: () => void;
   onLaunchImagineAI: () => void;
   onLaunchStyleTransfer: () => void;
   onLaunchRenderEnhancer: () => void;
   onLaunchVirtualStaging: () => void;
-  onLaunchAIEraser: () => void;
   onLaunchFourKUpscaler: () => void;
   onLaunchPromptGenerator: () => void;
   onLaunchVideoAI: () => void;
@@ -90,28 +86,12 @@ const tools = [
     category: 'concept-tools',
   },
   {
-    id: 'ai-eraser',
-    title: 'AI Eraser',
-    description: 'Remove unwanted objects from your architectural images with intelligent AI filling.',
-    image: aiEraserImg,
-    credits: 1,
-    category: 'edit-modify',
-  },
-  {
     id: '4k-upscaler',
     title: '4K Upscaler',
     description: 'Enhance image resolution up to 4K while maintaining architectural details and quality.',
     image: fourKUpscalerImg,
     credits: 1,
     category: 'image-tools',
-  },
-  {
-    id: 'inpainting-ai',
-    title: 'Inpainting AI',
-    description: 'Fill missing parts of images or modify specific areas with AI-powered inpainting.',
-    image: inpaintingAIImg,
-    credits: 1,
-    category: 'edit-modify',
   },
   {
     id: 'prompt-generator',
@@ -131,7 +111,7 @@ const tools = [
   },
 ];
 
-export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunchSketchToImage, onLaunchInpaintingAI, onLaunchImagineAI, onLaunchStyleTransfer, onLaunchRenderEnhancer, onLaunchVirtualStaging, onLaunchAIEraser, onLaunchFourKUpscaler, onLaunchPromptGenerator, onLaunchVideoAI, searchQuery }: ToolsOverviewProps) => {
+export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunchSketchToImage, onLaunchImagineAI, onLaunchStyleTransfer, onLaunchRenderEnhancer, onLaunchVirtualStaging, onLaunchFourKUpscaler, onLaunchPromptGenerator, onLaunchVideoAI, searchQuery }: ToolsOverviewProps) => {
   const [activeTab, setActiveTab] = useState('all-tools');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -154,9 +134,6 @@ export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunch
       case 'sketch-to-image':
         onLaunchSketchToImage();
         break;
-      case 'inpainting-ai':
-        onLaunchInpaintingAI();
-        break;
       case 'imagine-ai':
         onLaunchImagineAI();
         break;
@@ -168,9 +145,6 @@ export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunch
         break;
       case 'virtual-staging':
         onLaunchVirtualStaging();
-        break;
-      case 'ai-eraser':
-        onLaunchAIEraser();
         break;
       case '4k-upscaler':
         onLaunchFourKUpscaler();

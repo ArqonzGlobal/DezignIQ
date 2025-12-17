@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
 import { Upload, Loader2, Download, X, Home, Zap, Clock } from "lucide-react";
@@ -46,90 +46,68 @@ export const VirtualStagingModal = ({ isOpen, onClose, onImageGenerated }: Virtu
     }
 
     setIsLoading(true);
-    setProcessingTime(0);
     setRenderedImageUrl(null);
-    
+    setProcessingTime(0);
+
     const startTime = Date.now();
     const timer = setInterval(() => {
       setProcessingTime((Date.now() - startTime) / 1000);
     }, 100);
 
     try {
-      const formData = new FormData();
-      formData.append('image', image);
-      formData.append('prompt', prompt);
-      if (seed) formData.append('seed', seed);
+      const payload: any = {
+        prompt: prompt.trim(),
+      };
 
-      const { data, error } = await supabase.functions.invoke('virtual-staging', {
-        body: formData,
+      if (seed) payload.seed = seed;
+
+      // 🔹 Build dynamic FormData
+      const formData = new FormData();
+      formData.append("tool", "virtual-staging");
+      formData.append("image", image);
+      formData.append("payload", JSON.stringify(payload));
+
+      console.log("Calling MNML dynamic API → Virtual Staging");
+
+      const res = await apiRequest("/mnml/run", "POST", formData, true);
+
+      clearInterval(timer);
+
+      if (!res.success) {
+        throw res.error || "Virtual staging failed";
+      }
+
+      const result = res.data.result;
+
+      if (!result?.message) {
+        throw new Error("MNML did not return image");
+      }
+
+      const endTime = Date.now();
+      setProcessingTime((endTime - startTime) / 1000);
+
+      setRenderedImageUrl(result.message);
+      setIsLoading(false);
+
+      onImageGenerated?.({
+        imageUrl: result.message,
+        toolName: "Virtual Staging",
+        prompt,
       });
 
-      clearInterval(timer);
+      // updateCredits();
 
-      if (error) {
-        console.error('Virtual staging error:', error);
-        toast.error("Virtual staging failed. Please try again.");
-        return;
-      }
+      toast.success(
+        `Virtual staging completed in ${Math.round(
+          (endTime - startTime) / 1000
+        )}s`
+      );
 
-      if (data?.status === 'success' && data?.prediction_id) {
-        // Poll for results using the check-status function
-        const pollForResult = async () => {
-          let attempts = 0;
-          const maxAttempts = 60;
-          
-          while (attempts < maxAttempts) {
-            try {
-              const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-                body: { id: data.prediction_id },
-              });
-
-              if (statusError) {
-                console.error('Status check error:', statusError);
-                break;
-              }
-
-              if (statusData?.status === 'success' && statusData?.message && statusData?.message.length > 0) {
-                const endTime = Date.now();
-                setProcessingTime((endTime - startTime) / 1000);
-                const imageUrl = statusData.message[0];
-                setRenderedImageUrl(imageUrl);
-                setIsLoading(false);
-                
-                onImageGenerated?.({
-                  imageUrl,
-                  toolName: 'Virtual Staging',
-                  prompt,
-                });
-                updateCredits();
-                toast.success("Virtual staging completed successfully!");
-                return;
-              } else if (statusData?.status === 'failed') {
-                toast.error("Virtual staging failed. Please try again.");
-                return;
-              }
-
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              attempts++;
-            } catch (pollError) {
-              console.error('Polling error:', pollError);
-              break;
-            }
-          }
-          
-          toast.error("Virtual staging timed out. Please try again.");
-        };
-
-        pollForResult();
-      } else {
-        toast.error("Failed to start virtual staging process");
-      }
     } catch (error) {
       clearInterval(timer);
-      console.error('Virtual staging error:', error);
-      toast.error("An error occurred during virtual staging");
-    } finally {
       setIsLoading(false);
+      console.error(error);
+      toast.error("An error occurred during virtual staging");
     }
   };
 

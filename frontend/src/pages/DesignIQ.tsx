@@ -13,8 +13,6 @@ import { StyleTransferModal } from "@/components/StyleTransferModal";
 import { RenderEnhancerModal } from "@/components/RenderEnhancerModal";
 import { VirtualStagingModal } from "@/components/VirtualStagingModal";
 import { ImagineAIModal } from "@/components/ImagineAIModal";
-import { InpaintingAIModal } from "@/components/InpaintingAIModal";
-import { AIEraserModal } from "@/components/AIEraserModal";
 import { FourKUpscalerModal } from "@/components/FourKUpscalerModal";
 import { VideoAIModal } from "@/components/VideoAIModal";
 import { PromptGeneratorModal } from "@/components/PromptGeneratorModal";
@@ -46,8 +44,6 @@ const DesignIQ = () => {
   const [isRenderEnhancerOpen, setIsRenderEnhancerOpen] = useState(false);
   const [isVirtualStagingOpen, setIsVirtualStagingOpen] = useState(false);
   const [isImagineAIOpen, setIsImagineAIOpen] = useState(false);
-  const [isInpaintingAIOpen, setIsInpaintingAIOpen] = useState(false);
-  const [isAIEraserOpen, setIsAIEraserOpen] = useState(false);
   const [is4KUpscalerOpen, setIs4KUpscalerOpen] = useState(false);
   const [isVideoAIOpen, setIsVideoAIOpen] = useState(false);
   const [isPromptGeneratorOpen, setIsPromptGeneratorOpen] = useState(false);
@@ -91,8 +87,6 @@ const DesignIQ = () => {
             onLaunchRenderEnhancer={() => setIsRenderEnhancerOpen(true)}
             onLaunchVirtualStaging={() => setIsVirtualStagingOpen(true)}
             onLaunchImagineAI={() => setIsImagineAIOpen(true)}
-            onLaunchInpaintingAI={() => setIsInpaintingAIOpen(true)}
-            onLaunchAIEraser={() => setIsAIEraserOpen(true)}
             onLaunchFourKUpscaler={() => setIs4KUpscalerOpen(true)}
             onLaunchVideoAI={() => setIsVideoAIOpen(true)}
             onLaunchPromptGenerator={() => setIsPromptGeneratorOpen(true)}
@@ -156,16 +150,6 @@ const DesignIQ = () => {
       <ImagineAIModal
         isOpen={isImagineAIOpen}
         onClose={() => setIsImagineAIOpen(false)}
-        onImageGenerated={handleImageGenerated}
-      />
-      <InpaintingAIModal
-        isOpen={isInpaintingAIOpen}
-        onClose={() => setIsInpaintingAIOpen(false)}
-        onImageGenerated={handleImageGenerated}
-      />
-      <AIEraserModal
-        isOpen={isAIEraserOpen}
-        onClose={() => setIsAIEraserOpen(false)}
         onImageGenerated={handleImageGenerated}
       />
       <FourKUpscalerModal

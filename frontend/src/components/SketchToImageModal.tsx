@@ -8,7 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { SketchRenderingOptions } from "./SketchRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { apiRequest } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
 interface SketchToImageModalProps {
   isOpen: boolean;
@@ -50,101 +50,100 @@ export const SketchToImageModal = ({ isOpen, onClose, onImageGenerated }: Sketch
       return;
     }
 
-    if (!supabase) {
-      toast({
-        title: "Configuration Error",
-        description: "Supabase is not properly configured. Please check your project settings.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
     const startTime = Date.now();
-    
+
     try {
+      const payload = {
+        prompt: generatePrompt(),
+        style,        
+        detail_level: detailLevel,
+        color_mode: colorMode,    
+        lighting,    
+      };
       // Create form data
       const formData = new FormData();
-      formData.append('image', uploadedImage);
-      formData.append('prompt', generatePrompt());
-      formData.append('style', style);
-      formData.append('detail_level', detailLevel);
-      formData.append('color_mode', colorMode);
-      formData.append('lighting', lighting);
+      formData.append("tool", "sketch-to-image"); // 🔑 dynamic tool
+      formData.append("image", uploadedImage);
+      formData.append("payload", JSON.stringify(payload));
 
-      // Call the sketch-to-img Edge Function
-      console.log('Calling sketch-to-img edge function...');
-      const { data: submitData, error: submitError } = await supabase.functions.invoke('sketch-to-img', {
-        body: formData,
-      });
+      console.log("Calling MNML dynamic API → Sketch to Image");
 
-      console.log('Edge function response:', { data: submitData, error: submitError });
+      const res = await apiRequest("/mnml/run", "POST", formData, true);
 
-      if (submitError) {
-        console.error('Submit error details:', submitError);
-        throw new Error(`Failed to send a request to the Edge Function: ${submitError.message || 'Unknown error'}`);
+      if (!res.success) {
+        throw res.error || "Failed to submit Sketch-to-Image job";
       }
 
-      if (submitData.error) {
-        throw new Error(submitData.error);
-      }
-
-      const { id } = submitData;
+      const jobId = res.data.job_id;
 
       toast({
         title: "Processing Started",
         description: "Your sketch is being rendered. Please wait...",
       });
 
-      // Poll for status
+      const POLL_INTERVAL = 4000;
+      const MAX_DURATION = 60 * 2000;
+      const startPollingTime = Date.now();
+
+
+      // 🔹 Polling function
       const pollStatus = async () => {
-        const { data: statusData, error: statusError } = await supabase.functions.invoke('check-status', {
-          body: { id },
-        });
+        try {
+          const elapsedTime = Date.now() - startPollingTime;
 
-        if (statusError) {
-          throw new Error(statusError.message);
-        }
+          if (elapsedTime >= MAX_DURATION) {
+            setIsLoading(false);
 
-        if (statusData.error) {
-          throw new Error(statusData.error);
-        }
+            toast({
+              title: "Generation Timeout",
+              description: "Image generation is taking too long. Please try again.",
+              variant: "destructive",
+            });
 
-        if (statusData.status === 'success' && statusData.message && statusData.message.length > 0) {
-          const endTime = Date.now();
-          setProcessingTime((endTime - startTime) / 1000);
-          const imageUrl = statusData.message[0];
-          setRenderedImageUrl(imageUrl);
+            return;
+          }
+          const res = await apiRequest(`/get-result/${jobId}`, "GET");
+
+          console.log("status:", res);
+
+          if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
+            const endTime = Date.now();
+            setProcessingTime((endTime - startTime) / 1000);
+            setRenderedImageUrl(res.data.message[0]);
+            setIsLoading(false);
+
+            toast({
+              title: "Generation Complete!",
+              description: `Image generated in ${Math.round(
+                (endTime - startTime) / 1000
+              )}s`,
+            });
+          } else {
+            setTimeout(pollStatus, 4000);
+          }
+        } catch (error) {
+          console.log(error);
           setIsLoading(false);
-          
-          onImageGenerated?.({
-            imageUrl,
-            toolName: 'Sketch to Image',
-            prompt: generatePrompt(),
-          });
 
-          updateCredits();
-          
           toast({
-            title: "Rendering Complete!",
-            description: `Generated in ${Math.round((endTime - startTime) / 1000)}s`,
-          });
-        } else if (statusData.status === 'failed') {
-          throw new Error('Rendering failed');
-        } else {
-          // Still processing, poll again
-          setTimeout(pollStatus, 2000);
+            title: "Generation Failed",
+            description:"There was an error generating your image.",
+            variant: "destructive",
+          })
         }
       };
 
-      // Start polling
-      setTimeout(pollStatus, 2000);
-      
+      setTimeout(pollStatus, POLL_INTERVAL);
+
     } catch (error) {
       setIsLoading(false);
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "There was an error generating your image. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "There was an error generating your image.",
         variant: "destructive",
       });
     }
