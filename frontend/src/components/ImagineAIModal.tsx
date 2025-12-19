@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wand2, Zap, Clock, X, Lightbulb } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { updateCredits } from "@/utils/steroid";
-import { apiRequest } from "@/utils/steroid";
+import { apiRequest, saveImageHistory } from "@/utils/steroid";
 
 interface ImagineAIModalProps {
   isOpen: boolean;
@@ -112,6 +112,15 @@ const handleSubmit = async () => {
           const endTime = Date.now();
           setProcessingTime((endTime - startTime) / 1000);
           setResultImageUrl(res.data.message[0]);
+          const userStr = localStorage.getItem("user");
+          const user = userStr ? JSON.parse(userStr) : null;
+          const savedHistory = saveImageHistory({
+            userEmail: user.email,
+            imageUrl: res.data.message[0],
+            toolName: "Imagine AI",
+            prompt: prompt.trim(),
+          });
+          console.log("Image history saved:", savedHistory);
           setIsLoading(false);
 
           toast({
@@ -179,7 +188,7 @@ const handleSubmit = async () => {
             )}
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              15 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />

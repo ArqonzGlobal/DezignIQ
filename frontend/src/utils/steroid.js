@@ -42,6 +42,101 @@ export async function apiRequest(path, method = "GET", data = null, isForm = fal
   }
 }
 
+export async function fetchImageHistory() {
+  try {
+    const userStr = localStorage.getItem("user");
+    const user = JSON.parse(userStr);
+
+    if (!userStr) {
+      throw new Error("User not found in localStorage");
+    }
+
+    if (!user.email) {
+      throw new Error("User email missing");
+    }
+
+    const res = await apiRequest(
+      "/image-history/get",
+      "POST",
+      { userEmail: user.email }
+    );
+
+    if (!res.success) {
+      throw new Error(res.error || "Failed to fetch image history");
+    }
+
+    return res.data || [];
+
+  } catch (error) {
+    console.error("Fetch image history error:", error);
+    return [];
+  }
+}
+
+export async function deleteImageHistory(historyId) {
+  try {
+    if (!historyId) {
+      throw new Error("History ID is required");
+    }
+
+    const res = await apiRequest(
+      "/image-history/delete",
+      "POST",
+      { id: historyId }
+    );
+
+    if (!res.success) {
+      throw new Error(res.error || "Failed to delete image history");
+    }
+
+    return true;
+
+  } catch (error) {
+    console.error("Delete image history error:", error);
+    return false;
+  }
+}
+
+export async function saveImageHistory({
+  userEmail,
+  imageUrl,
+  toolName,
+  imageType = "url",
+  prompt = null,
+}) {
+  // Frontend validation
+  if (!userEmail || !imageUrl || !toolName) {
+    return {
+      success: false,
+      error: "userEmail, imageUrl and toolName are required",
+    };
+  }
+
+  const payload = {
+    userEmail,
+    imageUrl,
+    toolName,
+    imageType,
+  };
+
+  if (prompt) {
+    payload.prompt = prompt;
+  }
+
+  console.log("Save Image History Payload:", payload);
+
+  // Call backend
+  const res = await apiRequest(
+    "/image-history/save",
+    "POST",
+    payload
+  );
+
+  console.log("Save Image History Response:", res);
+
+  return res;
+}
+
 export function updateCredits() {
   let apiKey = localStorage.getItem("apikey");
   apiKey = apiKey?.replace(/^"|"$/g, "");

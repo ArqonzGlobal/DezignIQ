@@ -8,7 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { SketchRenderingOptions } from "./SketchRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { apiRequest } from "@/utils/steroid";
+import { apiRequest,  saveImageHistory } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
 interface SketchToImageModalProps {
   isOpen: boolean;
@@ -112,6 +112,16 @@ export const SketchToImageModal = ({ isOpen, onClose, onImageGenerated }: Sketch
             setProcessingTime((endTime - startTime) / 1000);
             setRenderedImageUrl(res.data.message[0]);
             setIsLoading(false);
+            const userStr = localStorage.getItem("user");
+            const user = userStr ? JSON.parse(userStr) : null;
+            const imageHistory = saveImageHistory({
+              userEmail: user.email,
+              imageUrl: res.data.message[0],
+              toolName: "Sketch to Image",
+              prompt: generatePrompt(),
+            });
+
+            console.log("Image history saved:", imageHistory);
 
             toast({
               title: "Generation Complete!",

@@ -3,7 +3,6 @@ import { Header } from "@/components/Header";
 import { ToolsOverview } from "@/components/ToolsOverview";
 import { ConstructionCalculatorTools } from "@/components/ConstructionCalculatorTools";
 import { ImageHistory } from "@/components/ImageHistory";
-import { useImageHistory } from "@/hooks/useImageHistory";
 
 // AI Tool Modals
 import { InteriorAIModal } from "@/components/InteriorAIModal";
@@ -67,15 +66,9 @@ const DesignIQ = () => {
   const [showBoardFootCalculator, setShowBoardFootCalculator] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { history, addToHistory, removeFromHistory, clearHistory } = useImageHistory();
-
-  const handleImageGenerated = (item: { imageUrl: string; toolName: string; prompt?: string }) => {
-    addToHistory(item);
-  };
-
   return (
     <div className="min-h-screen bg-background">
-       <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
       
       <main>
         {!showCalculators ? (
@@ -120,42 +113,34 @@ const DesignIQ = () => {
       <InteriorAIModal
         isOpen={isInteriorAIOpen}
         onClose={() => setIsInteriorAIOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <ExteriorAIModal
         isOpen={isExteriorAIOpen}
         onClose={() => setIsExteriorAIOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <SketchToImageModal
         isOpen={isSketchToImageOpen}
         onClose={() => setIsSketchToImageOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <StyleTransferModal
         isOpen={isStyleTransferOpen}
         onClose={() => setIsStyleTransferOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <RenderEnhancerModal
         isOpen={isRenderEnhancerOpen}
         onClose={() => setIsRenderEnhancerOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <VirtualStagingModal
         isOpen={isVirtualStagingOpen}
         onClose={() => setIsVirtualStagingOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <ImagineAIModal
         isOpen={isImagineAIOpen}
         onClose={() => setIsImagineAIOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <FourKUpscalerModal
         isOpen={is4KUpscalerOpen}
         onClose={() => setIs4KUpscalerOpen(false)}
-        onImageGenerated={handleImageGenerated}
       />
       <VideoAIModal
         isOpen={isVideoAIOpen}
@@ -247,11 +232,7 @@ const DesignIQ = () => {
         onClose={() => setShowBoardFootCalculator(false)}
       />
 
-      <ImageHistory
-        history={history}
-        onRemove={removeFromHistory}
-        onClear={clearHistory}
-      />
+      <ImageHistory/>
     </div>
   );
 };

@@ -1,9 +1,15 @@
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+from pydantic import BaseModel, EmailStr
 import requests, os, time
+from bson import ObjectId
+from datetime import datetime
 from dotenv import load_dotenv
 from pydantic import BaseModel
-import asyncio
+from typing import Optional
+import base64
+import pytz
 import json
 
 load_dotenv()
@@ -77,6 +83,76 @@ MNML_TOOLS = {
         "requires_image": True
     }
 }
+
+MONGO_URI = os.getenv("MONGO_URI")
+client = AsyncIOMotorClient(MONGO_URI)
+db = client["DesignIQ"]
+image_collection = db["ImageHistory"]
+
+class ImageHistoryRequest(BaseModel):
+    userEmail: str
+    toolName: str
+    imageUrl: str
+    imageType: str 
+    prompt: Optional[str] = None
+
+
+
+@app.post("/image-history/save")
+async def save_image_history(payload: ImageHistoryRequest):
+    # 1️⃣ Validate required fields
+    if not payload.userEmail or not payload.toolName or not payload.imageUrl:
+        raise HTTPException(400, "Missing required fields")
+
+    # 2️⃣ Handle image
+    if payload.imageType == "base64":
+        image_base64 = payload.imageUrl.strip()
+        
+        if image_base64.startswith("data:image"):
+            image_base64 = image_base64.split(",", 1)[1]
+
+        if not image_base64:
+            raise HTTPException(400, "Base64 image is empty")
+
+    elif payload.imageType == "url":
+        # 🔹 Download image
+        try:
+            response = requests.get(payload.imageUrl, timeout=15)
+            response.raise_for_status()
+            image_bytes = response.content
+        except Exception as e:
+            raise HTTPException(400, f"Failed to download image: {str(e)}")
+
+        if not image_bytes:
+            raise HTTPException(400, "Downloaded image is empty")
+
+        image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+    else:
+        raise HTTPException(400, "Invalid imageType. Use 'url' or 'base64'")
+
+    # 3️⃣ IST timestamp (stored as UTC+05:30 offset correctly)
+    ist = pytz.timezone("Asia/Kolkata")
+    ist_now = datetime.now(ist)
+
+    document = {
+        "userEmail": payload.userEmail,
+        "toolName": payload.toolName,
+        "prompt": payload.prompt,
+        "image": image_base64,
+        "createdAt": ist_now
+    }
+
+    # 4️⃣ Insert into MongoDB
+    result = await image_collection.insert_one(document)
+
+    if not result.inserted_id:
+        raise HTTPException(500, "Mongo insert failed")
+
+    return {
+        "success": True,
+        "id": str(result.inserted_id)
+    }
 
 @app.post("/mnml/run")
 async def run_mnml_tool(
@@ -227,111 +303,6 @@ async def generate_image(
         "credits": result.get("credits"),
     })
 
-@app.post("/virtual-staging")
-async def virtual_staging(
-    image: UploadFile = File(...),
-    prompt: str = Form(...),
-    seed: str = Form(None)
-):
-    if not MNML_API_KEY:
-        raise HTTPException(500, "MNML_API_KEY missing")
-
-    headers = {"Authorization": f"Bearer {MNML_API_KEY}"}
-
-    if not image or not prompt:
-        raise HTTPException(400, "Image file and prompt are required")
-
-
-    files = {
-        "image": (image.filename, image.file, image.content_type)
-    }
-
-    data = {
-        "prompt": prompt,
-    }
-
-    if seed:
-        data["seed"] = seed
-
-    print("📤 Submitting job to:", MNML_BASE_URL + "/virtual-staging-ai")
-
-    response = requests.post(
-        f"{MNML_BASE_URL}/virtual-staging-ai",
-        headers=headers,
-        files=files,
-        data=data
-    )
-
-    try:
-        result = response.json()
-    except:
-        raise HTTPException(500, "MNML returned invalid response")
-
-    # Virtual staging returns the FINAL image directly in message
-    if result.get("status") == "success" and isinstance(result.get("message"), str):
-        return sendSuccessResponse({
-            "image_url": result["message"],
-            "message": "Virtual staging completed"
-        })
-
-    raise HTTPException(500, f"Unexpected response: {result}")
-
-
-class ImagineAIRequest(BaseModel):
-    prompt: str
-    render_type: str
-    aspect_ratio: str
-    style_strength: int
-    seed: int | None = None
-
-@app.post("/imagine-ai")
-async def imagine_ai(req: ImagineAIRequest):
-    if not MNML_API_KEY:
-        raise HTTPException(500, "MNML_API_KEY missing")
-    
-    if not req.prompt:
-        raise HTTPException(400, "prompt is required")
-
-    payload = {
-        "prompt": req.prompt,
-        "render_type": req.render_type,
-        "aspect_ratio": req.aspect_ratio,
-        "style_strength": req.style_strength,
-    }
-
-    if req.seed:
-        payload["seed"] = req.seed
-
-    print("Sending FORM DATA payload to MNML:", payload)
-
-    response = requests.post(
-        f"{MNML_BASE_URL}/imagine-ai",
-        headers={"Authorization": f"Bearer {MNML_API_KEY}"},
-        data=payload   # <-- important
-    )
-
-    print("MNML STATUS:", response.status_code)
-    print("MNML RAW RESPONSE:", response.text)
-
-    try:
-        result = response.json()
-    except Exception:
-        raise HTTPException(
-            500,
-            f"MNML returned non-JSON response: {response.text}"
-        )
-
-    print("MNML PARSED RESPONSE:", result)
-
-    job_id = result.get("prediction_id") or result.get("id")
-    if not job_id:
-        raise HTTPException(500, f"No job ID returned by MNML: {result}")
-
-    return sendSuccessResponse({
-        "job_id": job_id,
-        "message": "Imagine AI job submitted",
-    })
-
 @app.get("/get-result/{job_id}")
 async def get_result(job_id: str):
     headers = {"Authorization": f"Bearer {MNML_API_KEY}"}
@@ -362,116 +333,69 @@ async def get_result(job_id: str):
         "status": status or "processing",    # ✅ REQUIRED
         "job_id": job_id
     })
+class ImageHistoryGetRequest(BaseModel):
+    userEmail: str
 
+@app.post("/image-history/get")
+async def get_image_history(payload: ImageHistoryGetRequest):
+    if not payload.userEmail:
+        raise HTTPException(400, "userEmail is required")
 
-@app.post("/prompt-generator")
-async def prompt_generator(
-    image: UploadFile = File(...),
-    prompt: str = Form(""),
-    endpoint: str = Form("prompt-generator-ai")
-):
-    if not MNML_API_KEY:
-        raise HTTPException(500, "MNML_API_KEY missing")
+    cursor = image_collection.find(
+        {"userEmail": payload.userEmail}
+    ).sort("createdAt", -1)
 
-    headers = {"Authorization": f"Bearer {MNML_API_KEY}"}
+    results = []
 
-    # Build multipart/form-data
-    files = {
-        "image": (image.filename, image.file, image.content_type)
+    ist = pytz.timezone("Asia/Kolkata")
+
+    async for doc in cursor:
+        created_at = doc.get("createdAt")
+
+        # Convert UTC → IST if needed
+        if created_at and created_at.tzinfo is None:
+            created_at = pytz.utc.localize(created_at)
+
+        if created_at:
+            created_at = created_at.astimezone(ist)
+
+        results.append({
+            "id": str(doc["_id"]),
+            "toolName": doc.get("toolName"),
+            "prompt": doc.get("prompt"),
+            "image": f"data:image/png;base64,{doc.get('image')}",
+            "createdAt": created_at.isoformat() if created_at else None
+        })
+
+    return {
+        "success": True,
+        "data": results
     }
 
-    data = {}
-    if prompt.strip():
-        data["prompt"] = prompt
+class ImageHistoryDeleteRequest(BaseModel):
+    id: str
 
-    print(f"📤 Sending Prompt Generator Request → {endpoint}")
+@app.post("/image-history/delete")
+async def delete_image_history(payload: ImageHistoryDeleteRequest):
+    if not payload.id:
+        raise HTTPException(400, "Image history id is required")
 
+    # Validate ObjectId
     try:
-        response = requests.post(
-            f"{MNML_BASE_URL}/{endpoint}",
-            headers=headers,
-            files=files,
-            data=data
-        )
+        object_id = ObjectId(payload.id)
+    except Exception:
+        raise HTTPException(400, "Invalid image history id")
 
-        print("MNML RESPONSE CODE:", response.status_code)
-        print("MNML RAW:", response.text[:200])
+    result = await image_collection.delete_one({"_id": object_id})
 
-        if response.status_code != 200:
-            raise HTTPException(response.status_code, response.text)
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Image history not found")
 
-        result = response.json()
-
-        # MNML usually returns: { "status": "success", "message": "...generated_prompt..." }
-        generated_prompt = result.get("message")
-
-        if not generated_prompt:
-            raise HTTPException(500, f"Prompt not found in MNML response: {result}")
-
-        return sendSuccessResponse({"generated_prompt": generated_prompt})
-
-    except Exception as e:
-        raise HTTPException(500, f"Error calling MNML Prompt Generator: {e}")
-
-@app.post("/video-ai")
-async def video_ai(
-    image: UploadFile = File(...),
-    prompt: str = Form(...),
-    duration: str = Form("5"),
-    cfg_scale: str = Form("0.5"),
-    aspect_ratio: str = Form("16:9"),
-    movement_type: str = Form("horizontal"),
-    direction: str = Form("left"),
-    negative_prompt: str = Form(None)
-):
-    if not MNML_API_KEY:
-        raise HTTPException(500, "Missing MNML API Key")
-
-    headers = {"Authorization": f"Bearer {MNML_API_KEY}"}
-
-    files = {
-        "image": (image.filename, image.file, image.content_type)
+    return {
+        "success": True,
+        "message": "Image history deleted successfully",
+        "id": payload.id
     }
-
-    data = {
-        "prompt": prompt,
-        "duration": duration,
-        "cfg_scale": cfg_scale,
-        "aspect_ratio": aspect_ratio,
-        "movement_type": movement_type,
-        "direction": direction
-    }
-
-    if negative_prompt:
-        data["negative_prompt"] = negative_prompt
-
-    print("📤 Sending data to MNML Video AI:", data)
-
-    response = requests.post(
-        f"{MNML_BASE_URL}/video-ai",
-        headers=headers,
-        files=files,
-        data=data
-    )
-
-    if response.status_code != 200:
-        raise HTTPException(response.status_code, response.text)
-
-    try:
-        result = response.json()
-    except:
-        raise HTTPException(500, "Invalid JSON returned by MNML")
-
-    if result.get("status") == "success" and isinstance(result.get("message"), str):
-        return sendSuccessResponse({"instant": True,
-            "video_url": result["message"]})
-    
-    job_id = result.get("id") or result.get("prediction_id")
-
-    if not job_id:
-        raise HTTPException(500, f"MNML returned neither video nor job id: {result}")
-
-    return sendSuccessResponse({"job_id": job_id})
 
 def sendSuccessResponse(data: dict):
     print("✅ Success Response:", data)

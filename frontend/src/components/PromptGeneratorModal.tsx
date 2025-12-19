@@ -229,22 +229,6 @@ export const PromptGeneratorModal = ({ isOpen, onClose }: PromptGeneratorModalPr
               </Card>
             </div>
           </div>
-
-          {/* API Integration Status */}
-          <Card className="mt-8 p-6 border-success/20 bg-success/5">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-success/20">
-                <Zap className="h-5 w-5 text-success" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-2">Prompt Generator Integration Active</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Connected to mnml Prompt Generator API through secure Supabase Edge Functions. 
-                  Upload an architectural image to analyze and generate detailed prompts.
-                </p>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
     </div>

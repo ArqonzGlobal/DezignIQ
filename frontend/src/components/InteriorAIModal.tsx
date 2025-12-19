@@ -8,7 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { RenderingOptions } from "./RenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import {  apiRequest } from "@/utils/steroid";
+import {  apiRequest, saveImageHistory } from "@/utils/steroid";
 interface InteriorAIModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -59,12 +59,19 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
       const formData = new FormData();
       formData.append("image", uploadedImage);
       formData.append("prompt", generatePrompt());
-      formData.append("endpoint", endpoint);
-      formData.append("imageType", imageType);
-      formData.append("scenario", scenario);
-      formData.append("geometry_input", geometryInput.toString());
-      formData.append("styles", styles);
-      formData.append("renderspeed", renderSpeed);
+
+      formData.append("expert_name", "interior");
+      formData.append("imagetype", "photo");
+
+      formData.append(
+        "scene_mood",
+        lightingMode === "morning" ? "auto_daylight" : "evening_lighting"
+      );
+
+      formData.append("camera_angle", "same_as_input");
+      formData.append("render_style", "realistic");
+      formData.append("render_scenario", scenario); 
+      formData.append("context", JSON.stringify(["interior"]));
 
       // 🔹 Submit job
       const submitRes = await apiRequest("/generate-image", "POST", formData, true);
@@ -106,10 +113,19 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
           console.log("status:", res.status);
           console.log("message:", res.message);
 
-          if (res.status === "success" && res.message && res.message.length > 0) {
+          if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
             const endTime = Date.now();
             setProcessingTime((endTime - startTime) / 1000);
-            setRenderedImageUrl(res.data.image_url);
+            setRenderedImageUrl(res.data.message[0]);
+            const userStr = localStorage.getItem("user");
+            const user = userStr ? JSON.parse(userStr) : null;
+            const savedHistory = saveImageHistory({
+              userEmail: user.email,
+              imageUrl: res.data.message[0],
+              toolName: "Interior AI",
+              prompt: generatePrompt(),
+            });
+            console.log("Image history saved:", savedHistory);
             setIsLoading(false);
 
             toast({

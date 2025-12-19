@@ -8,7 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { ExteriorRenderingOptions } from "./ExteriorRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { apiRequest } from "@/utils/steroid";
+import { apiRequest, saveImageHistory } from "@/utils/steroid";
 
 const endpoint = "exterior";
 
@@ -72,7 +72,7 @@ export const ExteriorAIModal = ({ isOpen, onClose, onImageGenerated }: ExteriorA
 
       formData.append("camera_angle", "same_as_input");
       formData.append("render_style", "realistic");
-      formData.append("render_scenario", scenario); // precise / creative
+      formData.append("render_scenario", scenario); 
       formData.append("context", JSON.stringify(["exterior"]));
 
 
@@ -120,6 +120,15 @@ export const ExteriorAIModal = ({ isOpen, onClose, onImageGenerated }: ExteriorA
             const endTime = Date.now();
             setProcessingTime((endTime - startTime) / 1000);
             setRenderedImageUrl(res.data.message[0]);
+            const userStr = localStorage.getItem("user");
+            const user = userStr ? JSON.parse(userStr) : null;
+            const savedHistory = saveImageHistory({
+              userEmail: user.email,
+              imageUrl: res.data.message[0],
+              toolName: "Exterior AI",
+              prompt: generatePrompt(),
+            });
+            console.log("Image history saved:", savedHistory);
             setIsLoading(false);
 
             toast({

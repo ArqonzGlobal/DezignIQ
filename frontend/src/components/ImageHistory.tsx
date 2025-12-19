@@ -1,94 +1,104 @@
-import { Download, Trash2, X } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
-import { HistoryItem } from "@/hooks/useImageHistory";
+import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
-interface ImageHistoryProps {
-  history: HistoryItem[];
-  onRemove: (id: string) => void;
-  onClear: () => void;
+import {
+  fetchImageHistory,
+  deleteImageHistory,
+} from "@/utils/steroid";
+
+interface HistoryItem {
+  id: string;
+  toolName: string;
+  prompt?: string;
+  image: string;
+  createdAt: string;
 }
 
-export const ImageHistory = ({ history, onRemove, onClear }: ImageHistoryProps) => {
+export const ImageHistory = () => {
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [selectedImage, setSelectedImage] = useState<HistoryItem | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleDownload = async (item: HistoryItem) => {
+  // 🔹 Fetch from DB
+  useEffect(() => {
+    const loadHistory = async () => {
+      setLoading(true);
+      const data = await fetchImageHistory();
+      setHistory(data);
+      setLoading(false);
+    };
+
+    loadHistory();
+  }, []);
+
+  const handleDownload = (item: HistoryItem) => {
     try {
-      const response = await fetch(item.imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${item.toolName}-${new Date(item.timestamp).toISOString()}.png`;
-      document.body.appendChild(a);
+      const a = document.createElement("a");
+      a.href = item.image;
+      a.download = `${item.toolName}-${item.id}.png`;
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+
       toast({
         title: "Download started",
-        description: "Your image is being downloaded.",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Download failed",
-        description: "Failed to download the image.",
         variant: "destructive",
       });
     }
   };
 
-  if (history.length === 0) {
-    return null;
-  }
+  // 🔹 Delete from DB
+  const handleDelete = async (id: string) => {
+    const success = await deleteImageHistory(id);
+
+    if (success) {
+      setHistory((prev) => prev.filter((item) => item.id !== id));
+      toast({ title: "Image deleted" });
+    } else {
+      toast({
+        title: "Delete failed",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading || history.length === 0) return null;
 
   return (
     <>
       <div className="w-full border-t border-border bg-card/50 backdrop-blur">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Generation History</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClear}
-              className="gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Clear All
-            </Button>
-          </div>
+          <h3 className="text-lg font-semibold mb-4">
+            Generation History
+          </h3>
+
           <ScrollArea className="w-full">
-            <div className="flex gap-4 pb-4">
+            <div className="flex gap-4 pb-4 min-w-max">
               {history.map((item) => (
                 <Card
                   key={item.id}
-                  className="relative flex-shrink-0 w-48 h-48 group cursor-pointer overflow-hidden transition-transform hover:scale-105"
+                  className="relative w-48 h-48 cursor-pointer overflow-hidden group flex-shrink-0"
                   onClick={() => setSelectedImage(item)}
                 >
                   <img
-                    src={item.imageUrl}
+                    src={item.image}
                     alt={item.toolName}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                      <p className="text-white text-sm font-medium truncate">{item.toolName}</p>
-                      <p className="text-white/70 text-xs">
-                        {new Date(item.timestamp).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
                   <Button
-                    variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/70 text-white"
+                    variant="ghost"
+                    className="absolute top-2 right-2 bg-black/50 text-white opacity-0 group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onRemove(item.id);
+                      handleDelete(item.id);
                     }}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -96,38 +106,49 @@ export const ImageHistory = ({ history, onRemove, onClear }: ImageHistoryProps) 
                 </Card>
               ))}
             </div>
+
+            {/* 🔑 THIS IS MANDATORY */}
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
       </div>
 
-      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <DialogContent className="max-w-4xl">
+      {/* MODAL PREVIEW */}
+      <Dialog
+        open={!!selectedImage}
+        onOpenChange={() => setSelectedImage(null)}
+      >
+        <DialogContent className="max-w-xl">
           {selectedImage && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">{selectedImage.toolName}</h3>
+                  <h3 className="font-semibold">
+                    {selectedImage.toolName}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(selectedImage.timestamp).toLocaleString()}
+                    {new Date(selectedImage.createdAt).toLocaleString()}
                   </p>
                   {selectedImage.prompt && (
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm mt-1">
                       Prompt: {selectedImage.prompt}
                     </p>
                   )}
                 </div>
+
                 <Button
                   onClick={() => handleDownload(selectedImage)}
-                  className="gap-2"
+                  className="gap-3 mt-4"
                 >
                   <Download className="h-4 w-4" />
                   Download
                 </Button>
               </div>
+
               <img
-                src={selectedImage.imageUrl}
+                src={selectedImage.image}
                 alt={selectedImage.toolName}
-                className="w-full h-auto rounded-lg"
+                className="w-full rounded-lg"
               />
             </div>
           )}

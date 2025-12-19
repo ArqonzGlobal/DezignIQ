@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { apiRequest } from "@/utils/steroid";
+import { apiRequest, saveImageHistory } from "@/utils/steroid";
 import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
 import { Upload, Loader2, Download, X, Home, Zap, Clock } from "lucide-react";
@@ -87,6 +87,16 @@ export const VirtualStagingModal = ({ isOpen, onClose, onImageGenerated }: Virtu
       setProcessingTime((endTime - startTime) / 1000);
 
       setRenderedImageUrl(result.message);
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
+      const savedHistory = saveImageHistory({
+        userEmail: user.email,
+        imageUrl: result.message,
+        toolName: "Virtual Staging",
+        imageType: "base64",
+        prompt,
+      });
+      console.log("Image history saved:", savedHistory);
       setIsLoading(false);
 
       onImageGenerated?.({
@@ -139,7 +149,7 @@ export const VirtualStagingModal = ({ isOpen, onClose, onImageGenerated }: Virtu
             )}
             <Badge variant="secondary" className="gap-1">
               <Zap className="h-3 w-3" />
-              25 Credits
+              1 Credits
             </Badge>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-4 w-4" />
