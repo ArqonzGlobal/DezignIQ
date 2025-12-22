@@ -7,6 +7,7 @@ import { useUser } from "@/contexts/UserContext";
 import { LogIn } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/utils/steroid";
+import { toast } from "@/hooks/use-toast";
 
 export const Header = ({ searchQuery, setSearchQuery }) => {
   const { isLoggedIn, setIsLoggedIn } = useUser();
@@ -18,8 +19,6 @@ export const Header = ({ searchQuery, setSearchQuery }) => {
       let apiKey = localStorage.getItem("apikey");
       apiKey = apiKey?.replace(/^"|"$/g, "");
 
-      console.log("Fetched API Key:", apiKey);
-
       if (!apiKey) return;
 
       const response = await apiRequest(
@@ -27,8 +26,17 @@ export const Header = ({ searchQuery, setSearchQuery }) => {
         "POST",
         { apiKey }
       );
-
-      console.log("Credits Response:", response);
+      if(!response?.success) {
+        toast({
+          title: "API is Expired!",
+          description:"Login again.",
+          variant: "default",
+        })
+        setTimeout(() => {
+          handleSignOut();
+        }, 3000);
+        return;
+      }
 
       if (response?.success) {
         setCredits(response.credits);

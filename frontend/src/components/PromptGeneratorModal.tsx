@@ -47,8 +47,6 @@ export const PromptGeneratorModal = ({ isOpen, onClose }: PromptGeneratorModalPr
       formData.append("image", uploadedImage);
       formData.append("payload", JSON.stringify(payload));
 
-      console.log("Calling MNML dynamic API → Prompt Generator");
-
       const res = await apiRequest("/mnml/run", "POST", formData, true);
 
       if (!res.success) {
@@ -64,7 +62,7 @@ export const PromptGeneratorModal = ({ isOpen, onClose }: PromptGeneratorModalPr
 
       setGeneratedPrompt(generatedPrompt);
 
-      // updateCredits();
+      updateCredits();
 
       toast({
         title: "Prompt Generated!",

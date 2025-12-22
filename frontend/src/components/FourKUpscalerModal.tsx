@@ -7,8 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { apiRequest, saveImageHistory } from "@/utils/steroid";
-import { updateCredits } from "@/utils/steroid";
+import { apiRequest, saveImageHistory, updateCredits } from "@/utils/steroid";
 import { toast } from "@/hooks/use-toast"
 import { Upload, Loader2, Download, X, Image, Zap, Clock } from "lucide-react";
 
@@ -100,7 +99,6 @@ export const FourKUpscalerModal = ({ isOpen, onClose, onImageGenerated }: FourKU
           }
 
           const statusRes = await apiRequest(`/get-result/${jobId}`, "GET");
-          console.log("status:", statusRes);
 
           if (
             statusRes?.data?.status === "success" &&
@@ -111,6 +109,7 @@ export const FourKUpscalerModal = ({ isOpen, onClose, onImageGenerated }: FourKU
 
             setProcessingTime((endTime - startTime) / 1000);
             setRenderedImageUrl(statusRes.data.message[0]);
+            updateCredits();
             const userStr = localStorage.getItem("user");
             const user = userStr ? JSON.parse(userStr) : null;
             const savedHistory = saveImageHistory({
@@ -118,7 +117,6 @@ export const FourKUpscalerModal = ({ isOpen, onClose, onImageGenerated }: FourKU
               imageUrl: res.data.message[0],
               toolName: "4k upscaler",
             });
-            console.log("Image history saved:", savedHistory);
             setIsLoading(false);
 
             toast({

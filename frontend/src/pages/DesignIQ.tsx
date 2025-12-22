@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { ToolsOverview } from "@/components/ToolsOverview";
 import { ConstructionCalculatorTools } from "@/components/ConstructionCalculatorTools";
@@ -33,6 +33,7 @@ import { ThinsetCalculatorModal } from "@/components/calculators/ThinsetCalculat
 import { BrickCalculatorModal } from "@/components/calculators/BrickCalculatorModal";
 import { VastuCalculatorModal } from "@/components/calculators/VastuCalculatorModal";
 import { BoardFootCalculatorModal } from "@/components/calculators/BoardFootCalculatorModal";
+import { useUser } from "@/contexts/UserContext";
 
 const DesignIQ = () => {
   const [showCalculators, setShowCalculators] = useState(false);
@@ -65,6 +66,18 @@ const DesignIQ = () => {
   const [showVastuCalculator, setShowVastuCalculator] = useState(false);
   const [showBoardFootCalculator, setShowBoardFootCalculator] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { setIsLoggedIn } = useUser();
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    const apiKeyStr = localStorage.getItem("apikey");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const apiKey = apiKeyStr ? JSON.parse(apiKeyStr) : null;
+
+    if (user && user.email && apiKey) {
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">

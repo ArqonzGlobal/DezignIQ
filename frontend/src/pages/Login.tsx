@@ -41,7 +41,6 @@ const Login = () => {
       toast.error(res.error.message || "Login failed");
       return;
     }
-
     setIsLoggedIn(true);
     // Save user details if needed (localStorage)
     localStorage.setItem("user", JSON.stringify(res.user));

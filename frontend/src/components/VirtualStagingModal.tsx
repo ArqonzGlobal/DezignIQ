@@ -6,10 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { apiRequest, saveImageHistory } from "@/utils/steroid";
-import { updateCredits } from "@/utils/steroid";
+import { apiRequest, saveImageHistory, updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
-import { Upload, Loader2, Download, X, Home, Zap, Clock } from "lucide-react";
+import {  X, Home, Zap, Clock } from "lucide-react";
 
 // Fixed: Removed Dialog dependencies to use custom modal structure
 
@@ -67,7 +66,12 @@ export const VirtualStagingModal = ({ isOpen, onClose, onImageGenerated }: Virtu
       formData.append("image", image);
       formData.append("payload", JSON.stringify(payload));
 
-      console.log("Calling MNML dynamic API → Virtual Staging");
+      let apiKey = localStorage.getItem("apikey") || "";
+      apiKey = apiKey.replace(/^"|"$/g, "");
+      if(!apiKey ) {
+        toast.error("API Key missing. Please login again.");
+        return;
+      }
 
       const res = await apiRequest("/mnml/run", "POST", formData, true);
 
@@ -87,6 +91,7 @@ export const VirtualStagingModal = ({ isOpen, onClose, onImageGenerated }: Virtu
       setProcessingTime((endTime - startTime) / 1000);
 
       setRenderedImageUrl(result.message);
+      updateCredits();
       const userStr = localStorage.getItem("user");
       const user = userStr ? JSON.parse(userStr) : null;
       const savedHistory = saveImageHistory({
@@ -96,7 +101,6 @@ export const VirtualStagingModal = ({ isOpen, onClose, onImageGenerated }: Virtu
         imageType: "base64",
         prompt,
       });
-      console.log("Image history saved:", savedHistory);
       setIsLoading(false);
 
       onImageGenerated?.({

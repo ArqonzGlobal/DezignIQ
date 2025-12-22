@@ -8,8 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { SketchRenderingOptions } from "./SketchRenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { apiRequest,  saveImageHistory } from "@/utils/steroid";
-import { updateCredits } from "@/utils/steroid";
+import { apiRequest,  saveImageHistory, updateCredits } from "@/utils/steroid";
 interface SketchToImageModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -67,8 +66,6 @@ export const SketchToImageModal = ({ isOpen, onClose, onImageGenerated }: Sketch
       formData.append("image", uploadedImage);
       formData.append("payload", JSON.stringify(payload));
 
-      console.log("Calling MNML dynamic API → Sketch to Image");
-
       const res = await apiRequest("/mnml/run", "POST", formData, true);
 
       if (!res.success) {
@@ -105,12 +102,11 @@ export const SketchToImageModal = ({ isOpen, onClose, onImageGenerated }: Sketch
           }
           const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-          console.log("status:", res);
-
           if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
             const endTime = Date.now();
             setProcessingTime((endTime - startTime) / 1000);
             setRenderedImageUrl(res.data.message[0]);
+            updateCredits();
             setIsLoading(false);
             const userStr = localStorage.getItem("user");
             const user = userStr ? JSON.parse(userStr) : null;
@@ -120,8 +116,6 @@ export const SketchToImageModal = ({ isOpen, onClose, onImageGenerated }: Sketch
               toolName: "Sketch to Image",
               prompt: generatePrompt(),
             });
-
-            console.log("Image history saved:", imageHistory);
 
             toast({
               title: "Generation Complete!",

@@ -1,17 +1,12 @@
 import axios from "axios";
 import { toast } from "sonner";
 
-let BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-
 
 export async function apiRequest(path, method = "GET", data = null, isForm = false) {
-  console.log("api path", path)
   let baseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000" ;
-  if (path === "/arqonz-signin" || path === "/get-credits") {
+  if (path === "/arqonz-signin" || path === "/get-credits" || path === "/update-credits") {
     baseUrl = "/api";
   }
- 
-  console.log("API Base URL:", baseUrl);
   
   try {
     const config = {
@@ -19,8 +14,6 @@ export async function apiRequest(path, method = "GET", data = null, isForm = fal
       url: `${baseUrl}${path}`,
       headers: {},
     };
-
-    console.log("API Request:", config.url);
 
     if (data) {
       if (isForm) {
@@ -31,8 +24,7 @@ export async function apiRequest(path, method = "GET", data = null, isForm = fal
       }
     }
 
-    const res = await axios(config);
-    console.log("API Response:", res);
+    const res = await axios(config);;
     return res.data;
   } catch (err) {
     return {
@@ -123,16 +115,12 @@ export async function saveImageHistory({
     payload.prompt = prompt;
   }
 
-  console.log("Save Image History Payload:", payload);
-
   // Call backend
   const res = await apiRequest(
     "/image-history/save",
     "POST",
     payload
   );
-
-  console.log("Save Image History Response:", res);
 
   return res;
 }
@@ -141,18 +129,8 @@ export function updateCredits() {
   let apiKey = localStorage.getItem("apikey");
   apiKey = apiKey?.replace(/^"|"$/g, "");
 
-  console.log("Updating credits with API key:", apiKey);
-
   if (!apiKey) toast.error("API key not found.");
 
   const payload = { apiKey: apiKey, "Update_Type":"debit","Amount":1 }
-  console.log("Update Credits Payload:", payload);
   const data = apiRequest("/update-credits", "POST",payload);
-  console.log("Update Credits Response:", data);
-  if (data.success) {
-    toast.success("Credit updated successfully.");
-  }
-  else {
-    toast.error(`Failed to update credit`);
-  }
 }

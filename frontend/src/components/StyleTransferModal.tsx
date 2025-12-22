@@ -8,9 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { updateCredits } from "@/utils/steroid";
 import { toast } from "sonner";
-import { apiRequest, saveImageHistory } from "@/utils/steroid";
+import { apiRequest, saveImageHistory, updateCredits } from "@/utils/steroid";
 import { Upload, Loader2, Download, X, Palette, Zap, Clock } from "lucide-react";
 
 interface StyleTransferModalProps {
@@ -82,9 +81,6 @@ const handleSubmit = async () => {
       })
     );
 
-
-    console.log("Calling MNML dynamic API → Style Transfer");
-
     const res = await apiRequest("/mnml/run", "POST", formData, true);
 
     if (!res.success) {
@@ -114,13 +110,12 @@ const handleSubmit = async () => {
         }
         const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-        console.log("status:", res);
-
         if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
           clearInterval(timer);
           const endTime = Date.now();
           setProcessingTime((endTime - startTime) / 1000);
           setRenderedImageUrl(res.data.message[0]);
+          updateCredits();
           const userStr = localStorage.getItem("user");
           const user = userStr ? JSON.parse(userStr) : null;
           const savedHistory = saveImageHistory({
@@ -128,7 +123,6 @@ const handleSubmit = async () => {
             imageUrl: res.data.message[0],
             toolName: "Style Transfer",
           });
-          console.log("Image history saved:", savedHistory);
           setIsLoading(false);
 
           toast.success("Generated succesfully!");

@@ -122,7 +122,6 @@ export const ToolsOverview = ({ onLaunchInteriorAI, onLaunchExteriorAI, onLaunch
       setShowLoginModal(true);
       return;
     }
-    console.log("is logged in:"+ isLoggedIn);
 
     switch (toolId) {
       case 'interior-ai':

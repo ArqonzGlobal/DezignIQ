@@ -74,8 +74,6 @@ export const VideoAIModal = ({ isOpen, onClose }: VideoAIModalProps) => {
       formData.append("image", uploadedImage);
       formData.append("payload", JSON.stringify(payload));
 
-      console.log("Calling MNML dynamic API → Video AI");
-
       const res = await apiRequest("/mnml/run", "POST", formData, true);
 
       if (!res.success) {

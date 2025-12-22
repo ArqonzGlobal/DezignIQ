@@ -8,7 +8,7 @@ import { ComparisonViewer } from "./ComparisonViewer";
 import { RenderingOptions } from "./RenderingOptions";
 import { Wand2, Zap, Clock, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import {  apiRequest, saveImageHistory } from "@/utils/steroid";
+import {  apiRequest, saveImageHistory, updateCredits } from "@/utils/steroid";
 interface InteriorAIModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,7 +29,6 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
   const [geometryInput, setGeometryInput] = useState(75);
   const [styles, setStyles] = useState('realistic');
   const [renderSpeed, setRenderSpeed] = useState('best');
-  const endpoint = "interior";
 
   const generatePrompt = () => {
     const basePrompt = lightingMode === 'morning' 
@@ -110,13 +109,11 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
           }
           const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-          console.log("status:", res.status);
-          console.log("message:", res.message);
-
           if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
             const endTime = Date.now();
             setProcessingTime((endTime - startTime) / 1000);
             setRenderedImageUrl(res.data.message[0]);
+            updateCredits()
             const userStr = localStorage.getItem("user");
             const user = userStr ? JSON.parse(userStr) : null;
             const savedHistory = saveImageHistory({
@@ -125,7 +122,6 @@ export const InteriorAIModal = ({ isOpen, onClose, onImageGenerated }: InteriorA
               toolName: "Interior AI",
               prompt: generatePrompt(),
             });
-            console.log("Image history saved:", savedHistory);
             setIsLoading(false);
 
             toast({

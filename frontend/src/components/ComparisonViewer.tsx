@@ -119,9 +119,6 @@ export const ComparisonViewer = ({ originalImage, renderedImageUrl, isLoading }:
                     target.src = renderedImageUrl;
                   }
                 }}
-                onLoad={() => {
-                  console.log('Rendered image loaded successfully:', renderedImageUrl);
-                }}
               />
               <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-sm">
                 Rendered

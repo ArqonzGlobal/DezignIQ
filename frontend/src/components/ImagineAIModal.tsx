@@ -9,8 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Wand2, Zap, Clock, X, Lightbulb } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { updateCredits } from "@/utils/steroid";
-import { apiRequest, saveImageHistory } from "@/utils/steroid";
+import { apiRequest, saveImageHistory, updateCredits } from "@/utils/steroid";
 
 interface ImagineAIModalProps {
   isOpen: boolean;
@@ -68,8 +67,6 @@ const handleSubmit = async () => {
     formData.append("tool", "imagine-ai"); // 🔑 dynamic tool
     formData.append("payload", JSON.stringify(payload));
 
-    console.log("Calling MNML dynamic API → Imagine AI");
-
     const res = await apiRequest("/mnml/run", "POST", formData, true);
 
     if (!res.success) {
@@ -106,12 +103,11 @@ const handleSubmit = async () => {
         }
         const res = await apiRequest(`/get-result/${jobId}`, "GET");
 
-        console.log("status:", res);
-
         if (res.data.status === "success" && res.data.message && res.data.message.length > 0) {
           const endTime = Date.now();
           setProcessingTime((endTime - startTime) / 1000);
           setResultImageUrl(res.data.message[0]);
+          updateCredits();
           const userStr = localStorage.getItem("user");
           const user = userStr ? JSON.parse(userStr) : null;
           const savedHistory = saveImageHistory({
@@ -120,7 +116,6 @@ const handleSubmit = async () => {
             toolName: "Imagine AI",
             prompt: prompt.trim(),
           });
-          console.log("Image history saved:", savedHistory);
           setIsLoading(false);
 
           toast({

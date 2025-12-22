@@ -7,9 +7,8 @@ import { Slider } from "@/components/ui/slider";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ComparisonViewer } from "./ComparisonViewer";
-import { updateCredits } from "@/utils/steroid";
 import { toast } from "@/hooks/use-toast"
-import { apiRequest, saveImageHistory } from "@/utils/steroid";
+import { apiRequest, saveImageHistory, updateCredits } from "@/utils/steroid";
 import { Upload, Loader2, Download, X, Sparkles, Zap, Clock } from "lucide-react";
 
 // Fixed: Removed Dialog dependencies to use custom modal structure
@@ -76,8 +75,6 @@ export const RenderEnhancerModal = ({ isOpen, onClose, onImageGenerated }: Rende
       formData.append("image", image);
       formData.append("payload", JSON.stringify(payload));
 
-      console.log("Calling MNML dynamic API → Render Enhancer");
-
       const res = await apiRequest("/mnml/run", "POST", formData, true);
 
       if (!res.success) {
@@ -122,6 +119,7 @@ export const RenderEnhancerModal = ({ isOpen, onClose, onImageGenerated }: Rende
             const endTime = Date.now();
             setProcessingTime((endTime - startTime) / 1000);
             setRenderedImageUrl(res.data.message[0]);
+            updateCredits();
             const userStr = localStorage.getItem("user");
             const user = userStr ? JSON.parse(userStr) : null;
             const savedHistory = saveImageHistory({
@@ -129,7 +127,6 @@ export const RenderEnhancerModal = ({ isOpen, onClose, onImageGenerated }: Rende
               imageUrl: res.data.message[0],
               toolName: "Render Enhancer",
             });
-            console.log("Image history saved:", savedHistory);
             setIsLoading(false);
 
             toast({
